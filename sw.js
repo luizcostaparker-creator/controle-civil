@@ -1,7 +1,7 @@
-/* Central de controle CIVIL – service worker (gerado por ATUALIZAR APP; versão 2026-10-21-090937)
+/* Central de controle CIVIL – service worker (gerado por ATUALIZAR APP; versão 2026-10-21-091612)
    Guarda o sistema e as bibliotecas no aparelho: o app abre sem internet.
    Os dados da obra NÃO passam por aqui – ficam no navegador do aparelho (localStorage + IndexedDB). */
-const CACHE = 'controle-civil-2026-10-21-090937';
+const CACHE = 'controle-civil-2026-10-21-091612';
 const ICONES = ['./icon-192.png', './icon-512.png', './apple-touch-icon.png']; // opcionais: se faltar algum, o app instala mesmo assim
 const ARQUIVOS = [
   './', './index.html', './manifest.webmanifest',
@@ -21,8 +21,15 @@ self.addEventListener('activate', e => {
 });
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
+  // página principal: busca a versão publicada quando há internet (e guarda); sem internet usa a guardada
+  if (e.request.mode === 'navigate') {
+    e.respondWith(fetch(e.request.url, { cache: 'no-cache', credentials: 'same-origin' })
+      .then(r => { if (r.ok) { const c = r.clone(); caches.open(CACHE).then(k => k.put('./index.html', c)); } return r; })
+      .catch(() => caches.match('./index.html')));
+    return;
+  }
+  // bibliotecas, ícones e manifest: do aparelho primeiro
   e.respondWith(
-    caches.match(e.request, { ignoreSearch: true }).then(r => r ||
-      fetch(e.request).catch(() => e.request.mode === 'navigate' ? caches.match('./index.html') : Response.error()))
+    caches.match(e.request, { ignoreSearch: true }).then(r => r || fetch(e.request))
   );
 });
