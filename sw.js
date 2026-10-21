@@ -1,15 +1,16 @@
-/* Central de controle CIVIL – service worker (gerado por ATUALIZAR APP; versão 2026-10-21-083126)
+/* Central de controle CIVIL – service worker (gerado por ATUALIZAR APP; versão 2026-10-21-085051)
    Guarda o sistema e as bibliotecas no aparelho: o app abre sem internet.
    Os dados da obra NÃO passam por aqui – ficam no navegador do aparelho (localStorage + IndexedDB). */
-const CACHE = 'controle-civil-2026-10-21-083126';
+const CACHE = 'controle-civil-2026-10-21-085051';
+const ICONES = ['./icon-192.png', './icon-512.png', './apple-touch-icon.png']; // opcionais: se faltar algum, o app instala mesmo assim
 const ARQUIVOS = [
   './', './index.html', './manifest.webmanifest',
-  './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png',
   'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js'
 ];
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ARQUIVOS)));
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ARQUIVOS)
+    .then(() => Promise.all(ICONES.map(u => c.add(u).catch(() => {}))))));
 });
 self.addEventListener('message', e => { if (e.data === 'ativar') self.skipWaiting(); });
 self.addEventListener('activate', e => {

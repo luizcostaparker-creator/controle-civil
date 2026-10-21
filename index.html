@@ -10,8 +10,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="Controle CIVIL">
-<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
@@ -3187,13 +3187,13 @@ window.__prog={parseBase:(buf,n)=>{ const b=parseBase(buf,n); setBase(b); return
 </script>
 <div id="appUpd" hidden style="position:fixed;left:12px;right:12px;bottom:calc(16px + env(safe-area-inset-bottom));margin:0 auto;width:fit-content;max-width:calc(100vw - 24px);z-index:9999;background:#000;color:#fff;border:1px solid #43b02a;box-shadow:0 0 14px rgba(67,176,42,.35);border-radius:10px;padding:10px 14px;font:14px 'Segoe UI',Arial,sans-serif;display:flex;gap:10px;align-items:center">Nova versão do app disponível.<button id="appUpdBtn" style="background:#43b02a;color:#000;border:0;border-radius:6px;padding:6px 12px;font-weight:600;cursor:pointer">Atualizar</button></div>
 <script>
-/* app instalável: guarda o sistema e as bibliotecas no aparelho para abrir sem internet (versão 2026-10-21-083126) */
+/* app instalável: guarda o sistema e as bibliotecas no aparelho para abrir sem internet (versão 2026-10-21-085051) */
 if('serviceWorker' in navigator && location.protocol!=='file:'){
   var jaInstalado=!!navigator.serviceWorker.controller; // primeira instalação não mostra aviso nem recarrega
   navigator.serviceWorker.register('sw.js').then(function(reg){
     function avisa(w){ var b=document.getElementById('appUpd'); if(w.state!=='installed') return; b.hidden=false;
       w.addEventListener('statechange',function(){ if(w.state!=='installed') b.hidden=true; });
-      document.getElementById('appUpdBtn').onclick=function(){ w.postMessage('ativar'); }; }
+      document.getElementById('appUpdBtn').onclick=function(){ w.postMessage('ativar'); setTimeout(function(){ location.reload(); },4000); }; }
     if(reg.waiting && jaInstalado) avisa(reg.waiting);
     reg.addEventListener('updatefound',function(){ var w=reg.installing;
       w.addEventListener('statechange',function(){ if(w.state==='installed' && jaInstalado) avisa(w); }); });
