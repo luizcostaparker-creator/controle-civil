@@ -1,0 +1,393 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Apontamento – Controle CIVIL</title>
+<link rel="manifest" href="apontamento.webmanifest">
+<meta name="theme-color" content="#000000">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Apontamento">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-ap-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon-ap.png">
+<!-- Fonte do app Apontamento (celular). Não editar APP/apontamento.html: rodar ATUALIZAR APP.bat.
+     A tela de apontamento em si vem do modelo #engApp do PROGRAMAÇÃO - LANÇAMENTO.html (o mesmo do .html do PC). -->
+<style>
+:root{--bg:#f4f6f8;--panel:#fff;--ink:#14202b;--muted:#5b6876;--line:#d9dee4;--accent:#2f8f1d;--soft:#e7f5e3;--warn:#b42318;--wsoft:#fdecea;--amber:#9a6700}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1418;--panel:#171e24;--ink:#e7ecf0;--muted:#9aa7b3;--line:#2c3740;--accent:#5cc944;--soft:#16301a;--warn:#ff7b72;--wsoft:#3b1a1a;--amber:#e3b341}}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.4 "Segoe UI",Arial,sans-serif}
+body{padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+button{font:inherit;color:inherit}
+:focus-visible{outline:3px solid #43b02a;outline-offset:1px}
+.top{background:#000;color:#fff;padding:14px 16px;box-shadow:0 0 14px rgba(67,176,42,.18);border-bottom:1px solid rgba(67,176,42,.28)}
+.top h1{font-size:19px;margin:0}.top h1 span{color:#43b02a;font-weight:500}
+.top .sub{font-size:12px;color:#cfcfcf;margin-top:2px}
+main{max-width:720px;margin:0 auto;padding:14px 12px 40px}
+.big{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;text-align:left;cursor:pointer;
+  background:#43b02a;color:#000;border:0;border-radius:12px;padding:16px 18px;font-size:18px;font-weight:700;box-shadow:0 0 16px rgba(67,176,42,.35)}
+.big small{font-size:13px;font-weight:500;opacity:.8}
+h2{font-size:13px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:22px 0 8px}
+.sem{display:flex;align-items:stretch;gap:0;background:var(--panel);border:1px solid var(--line);border-left:6px solid var(--line);border-radius:10px;margin-bottom:10px;overflow:hidden}
+.sem.ok{border-left-color:var(--accent)}.sem.par{border-left-color:var(--amber)}
+.sem .abre{flex:1;min-width:0;text-align:left;background:none;border:0;padding:12px 14px;cursor:pointer}
+.sem .t{font-weight:700;font-size:16px}
+.sem .d{font-size:13px;color:var(--muted);margin-top:2px}
+.bar{height:6px;background:var(--line);border-radius:99px;margin:8px 0 4px;overflow:hidden}.bar i{display:block;height:100%;background:var(--accent)}
+.sem .env{font-size:12px;font-weight:700;color:var(--accent)}
+.sem .del{background:none;border:0;border-left:1px solid var(--line);padding:0 16px;cursor:pointer;color:var(--muted);font-size:18px}
+.vazio{background:var(--panel);border:1px dashed var(--line);border-radius:10px;padding:18px;text-align:center;color:var(--muted)}
+.ajuda{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin-top:18px;font-size:14px}
+.ajuda summary{cursor:pointer;font-weight:700}
+.ajuda ol{margin:8px 0 4px;padding-left:20px}.ajuda li{margin:4px 0}
+.priv{font-size:12px;color:var(--muted);margin-top:14px;text-align:center}
+#tela{position:fixed;inset:0;width:100%;height:100%;border:0;background:var(--bg);z-index:20}
+.toast{position:fixed;left:12px;right:12px;bottom:calc(16px + env(safe-area-inset-bottom));margin:0 auto;width:fit-content;max-width:calc(100vw - 24px);
+  background:#000;color:#fff;border:1px solid #43b02a;border-radius:10px;padding:10px 14px;display:none;z-index:30}
+</style>
+</head>
+<body>
+<header class="top"><h1>Apontamento <span>· Controle CIVIL</span></h1><div class="sub">Avanço semanal das atividades programadas</div></header>
+<main>
+  <button class="big" id="abrir">📂 Abrir arquivo recebido<small>o APONTAMENTO … .html que chegou do planejamento</small></button>
+  <input type="file" id="arq" accept=".html,.htm,.json,text/html,application/json" hidden>
+  <h2>Minhas semanas</h2>
+  <div id="lista"></div>
+  <details class="ajuda">
+    <summary>Como abrir o arquivo que chegou pelo WhatsApp</summary>
+    <p style="margin:8px 0 2px"><b>Android</b></p>
+    <ol><li>No WhatsApp, toque no arquivo para baixar.</li><li>Aqui, toque em <b>Abrir arquivo recebido</b> → procure em <b>Downloads</b> ou <b>WhatsApp › Documents</b>.</li></ol>
+    <p style="margin:8px 0 2px"><b>iPhone</b></p>
+    <ol><li>No WhatsApp, abra o arquivo → botão <b>Compartilhar</b> → <b>Salvar em Arquivos</b>.</li><li>Aqui, toque em <b>Abrir arquivo recebido</b> → escolha o arquivo salvo.</li></ol>
+    <p style="margin:8px 0 2px"><b>Ao terminar</b></p>
+    <ol><li>Dentro da semana, toque em <b>Gerar arquivo de retorno</b> e envie pelo WhatsApp ou e-mail para o planejamento.</li></ol>
+  </details>
+  <p class="priv">Os apontamentos ficam guardados só neste celular. Nada é enviado para a internet – o retorno vai apenas para quem você escolher.</p>
+</main>
+<iframe id="tela" title="Apontamento da semana" allow="web-share" hidden></iframe>
+<div class="toast" id="toast" role="status"></div>
+<script type="text/x-template" id="engApp"><!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Apontamento</title>
+<style>
+:root{--bg:#f4f6f8;--panel:#fff;--ink:#14202b;--muted:#5b6876;--line:#d9dee4;--accent:#2f8f1d;--soft:#e7f5e3;--warn:#b42318;--wsoft:#fdecea;--amber:#9a6700;--asoft:#fff4d6;--input:#fffbe6;--iline:#e6d68a}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1418;--panel:#171e24;--ink:#e7ecf0;--muted:#9aa7b3;--line:#2c3740;--accent:#5cc944;--soft:#16301a;--warn:#ff7b72;--wsoft:#3b1a1a;--amber:#e3b341;--asoft:#33290f;--input:#2a2716;--iline:#5a5226}}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.4 "Segoe UI",Arial,sans-serif}
+input,select,button{font:inherit;color:inherit}
+:focus-visible{outline:3px solid #43b02a;outline-offset:1px}
+.top{position:sticky;top:0;z-index:5;background:#000;color:#fff;padding:12px 16px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;box-shadow:0 0 14px rgba(67,176,42,.18)}
+.top h1{font-size:17px;margin:0}.top .sub{font-size:12px;color:#cfcfcf}.top .g{flex:1}
+.btn{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:8px 14px;cursor:pointer;min-height:40px}
+.btn.p{background:#43b02a;border-color:#43b02a;color:#000;font-weight:700}
+.btn.s{padding:3px 10px;min-height:34px;font-size:13px}
+main{max-width:1100px;margin:0 auto;padding:12px 12px 60px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:12px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.kpi .l{font-size:11px;text-transform:uppercase;color:var(--muted);font-weight:700;letter-spacing:.3px}.kpi .v{font-size:22px;font-weight:800}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px}
+.card h2{font-size:14px;margin:0 0 6px;text-transform:uppercase;letter-spacing:.4px}
+.hint{font-size:12px;color:var(--muted)}
+.tools{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:8px 0}
+.tools input[type=search]{flex:1;min-width:180px}
+input[type=text],input[type=search],input[type=date],select{border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:7px 8px;min-height:40px;width:100%}
+.ln{border:1px solid var(--line);border-left:6px solid var(--line);border-radius:8px;padding:10px;margin-bottom:8px}
+.ln.ok{border-left-color:var(--accent)}.ln.par{border-left-color:var(--amber)}.ln.zero{border-left-color:var(--warn)}
+.ln-h{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-weight:700}
+.ln-d{font-size:13px;color:var(--muted);margin:2px 0 6px}
+.ln-m{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:13px;margin-bottom:8px}
+.ln-in{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px}
+.ln-in label,.fg label{font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:2px}
+.ln-in input,.ln-in select{background:var(--input);border-color:var(--iline)}
+.av{display:flex;gap:4px}.av input{flex:1;text-align:right;min-width:0}
+.pill{font-size:11px;border-radius:999px;padding:1px 8px;font-weight:700;background:var(--line);color:var(--ink)}
+.pill.ok{background:var(--soft);color:var(--accent)}.pill.par{background:var(--asoft);color:var(--amber)}.pill.zero{background:var(--wsoft);color:var(--warn)}
+.need select{border:2px solid var(--warn)}
+.fg{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px}
+.wide{grid-column:1/-1}
+table{width:100%;border-collapse:collapse;font-size:13px}td,th{padding:6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.toast{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);background:#000;color:#fff;padding:10px 16px;border-radius:8px;display:none;z-index:9;max-width:92vw}
+#back{display:none}.emb #back{display:inline-flex}
+.top #back{background:#141414;color:#fff;border-color:#3a3a3a}
+/* celular: botão de retorno fixo embaixo, campos grandes, fora da programação em cartões */
+@media (max-width:640px){
+  .top{padding:10px 12px}
+  .top #ret{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));z-index:6;min-height:52px;font-size:16px;box-shadow:0 0 16px rgba(67,176,42,.45)}
+  main{padding-bottom:100px}
+  .kpis{grid-template-columns:repeat(2,1fr)}.kpi .v{font-size:19px}
+  .ln-in{grid-template-columns:1fr}
+  .av input{font-size:18px}
+  .btn.s{min-height:44px;padding:4px 14px;font-size:15px}
+  input[type=text],input[type=search],input[type=date],select{font-size:16px;min-height:44px}
+  #olist table,#olist tbody,#olist tr,#olist td{display:block;width:100%}
+  #olist thead{display:none}
+  #olist tr{border:1px solid var(--line);border-radius:8px;padding:8px 48px 8px 10px;margin-bottom:8px;position:relative}
+  #olist td{border:0;padding:1px 0}
+  #olist td:first-child{font-weight:700}
+  #olist td:last-child{position:absolute;top:6px;right:6px;width:auto}
+  .toast{bottom:calc(84px + env(safe-area-inset-bottom))}
+}
+</style></head><body>
+<header class="top"><button class="btn" id="back" aria-label="Voltar para a lista de semanas">‹ Semanas</button><div><h1 id="t"></h1><div class="sub" id="st"></div></div><div class="g"></div><button class="btn p" id="ret">⬇ Gerar arquivo de retorno</button></header>
+<main>
+<div class="kpis" id="k"></div>
+<section class="card"><h2>Atividades programadas</h2>
+<div class="hint">Informe o <b>avanço</b> (quantidade realizada). Se ficou abaixo do programado, escolha o <b>motivo do desvio</b>. Tudo é salvo automaticamente neste navegador.</div>
+<div class="tools"><input type="search" id="f" placeholder="Filtrar por TAG, etapa, frente…" aria-label="Filtrar"><label class="hint"><input type="checkbox" id="pend"> Só pendentes</label></div>
+<div id="list"></div></section>
+<section class="card"><h2>Executado fora da programação</h2>
+<div class="hint">Registre aqui o que foi executado e não estava programado para você nesta semana.</div>
+<div class="fg" style="margin-top:8px">
+<div><label for="oTag">TAG</label><input type="text" id="oTag" list="dTag" autocomplete="off"></div>
+<div class="wide"><label for="oDesc">Descrição breve</label><input type="text" id="oDesc" autocomplete="off"></div>
+<div><label for="oArea">Área</label><input type="text" id="oArea" list="dArea" autocomplete="off"></div>
+<div><label for="oEt">Etapa</label><input type="text" id="oEt" list="dEt" autocomplete="off"></div>
+<div><label for="oUnd">Und.</label><input type="text" id="oUnd" list="dUnd" autocomplete="off"></div>
+<div><label for="oQtd">Quantidade</label><input type="text" id="oQtd" inputmode="decimal"></div>
+<div><label for="oData">Data</label><input type="date" id="oData"></div>
+<div><label for="oSup">Supervisor</label><input type="text" id="oSup" list="dSup" autocomplete="off"></div>
+<div><label for="oEnc">Encarregado</label><input type="text" id="oEnc" list="dEnc" autocomplete="off"></div>
+</div>
+<div class="tools"><button class="btn p" id="oAdd">＋ Registrar</button></div>
+<div id="olist"></div></section>
+<p class="hint" style="text-align:center">Ao terminar, clique em <b>Gerar arquivo de retorno</b> e envie o arquivo .json para o planejamento.</p>
+</main>
+<datalist id="dTag"></datalist><datalist id="dArea"></datalist><datalist id="dEt"></datalist><datalist id="dUnd"></datalist><datalist id="dSup"></datalist><datalist id="dEnc"></datalist>
+<div class="toast" id="toast" role="status"></div>
+<script id="pkg" type="application/json">__PKG__<\/script>
+<script>
+(function(){
+var P=JSON.parse(document.getElementById('pkg').textContent);
+var EMB=window.parent!==window; // aberto dentro do app Apontamento (celular)
+if(EMB){ document.documentElement.classList.add('emb'); document.getElementById('back').onclick=function(){ parent.postMessage({tipo:'voltar'},'*'); }; }
+var KEY='apont.'+P.id, S=null;
+try{ S=JSON.parse(localStorage.getItem(KEY)); }catch(e){}
+if(!S||!S.lines){ S={lines:{},fora:[]}; P.lines.forEach(function(l){ S.lines[l.u]={av:(l.av==null?'':l.av), motivo:l.motivo||'', dataReal:l.dataReal||'', obsEng:l.obsEng||''}; }); }
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
+function $(s){ return document.querySelector(s); }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+var nf=new Intl.NumberFormat('pt-BR',{maximumFractionDigits:2});
+function fmt(n){ return (n===''||n==null||!isFinite(n))?'':nf.format(n); }
+function pnum(v){ if(v==null) return null; if(typeof v==='number') return v; var s=String(v).trim().replace(/\s/g,''); if(!s) return null; if(s.indexOf(',')>=0) s=s.replace(/\./g,'').replace(',','.'); var n=Number(s); return isFinite(n)?n:null; }
+function iv(v){ return (v===''||v==null)?'':String(Math.round(Number(v)*1e6)/1e6).replace('.',','); }
+function br(s){ return s?s.split('-').reverse().join('/'):''; }
+function stOf(l){ var a=S.lines[l.u]; if(a.av===''||a.av==null) return 'pen'; var av=Number(a.av); return av>=l.qtd-1e-9?'ok':(av>0?'par':'zero'); }
+var STX={pen:'pendente',ok:'concluído',par:'parcial',zero:'não executado'};
+var tt;
+function toast(m){ var t=$('#toast'); t.textContent=m; t.style.display='block'; clearTimeout(tt); tt=setTimeout(function(){ t.style.display='none'; },3500); }
+function opts(list,cur){ return '<option value=""></option>'+list.map(function(o){ return '<option'+(o===cur?' selected':'')+'>'+esc(o)+'</option>'; }).join(''); }
+function dl(id,list){ $(id).innerHTML=list.filter(Boolean).map(function(v){ return '<option value="'+esc(v)+'">'; }).join(''); }
+
+$('#t').textContent='Apontamento – '+P.eng+' – '+P.sem;
+$('#st').textContent='Semana de '+br(P.ini)+' a '+br(P.fim)+' · gerado em '+new Date(P.gerado).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'});
+document.title='Apontamento – '+P.eng+' – '+P.sem;
+dl('#dTag',Array.from(new Set(P.lines.map(function(l){return l.tag;})))); dl('#dArea',P.areas||[]); dl('#dEt',P.etapas||[]); dl('#dUnd',P.unds||[]);
+dl('#dSup',Array.from(new Set(P.lines.map(function(l){return l.sup;})))); dl('#dEnc',Array.from(new Set(P.lines.map(function(l){return l.enc;}))));
+$('#oData').min=P.ini; $('#oData').max=P.fim;
+
+function kpis(){
+  var n=P.lines.length, ap=0, hp=0, hr=0, semMot=0;
+  P.lines.forEach(function(l){ var a=S.lines[l.u], s=stOf(l), h=l.qtd*l.hhIdx; hp+=h;
+    if(s!=='pen'){ ap++; hr+=Math.min(Number(a.av)||0,l.qtd)*l.hhIdx; }
+    if((s==='par'||s==='zero')&&!a.motivo) semMot++; });
+  var ad=hp?hr/hp:'';
+  $('#k').innerHTML='<div class="kpi"><div class="l">Linhas apontadas</div><div class="v">'+ap+' / '+n+'</div></div>'+
+    '<div class="kpi"><div class="l">Aderência (H.H)</div><div class="v">'+(ap&&ad!==''?(ad*100).toLocaleString('pt-BR',{maximumFractionDigits:1})+'%':'—')+'</div></div>'+
+    '<div class="kpi"><div class="l">H.H realizado / programado</div><div class="v">'+fmt(Math.round(hr))+' / '+fmt(Math.round(hp))+'</div></div>'+
+    '<div class="kpi"><div class="l">Desvios sem motivo</div><div class="v" style="color:'+(semMot?'var(--warn)':'inherit')+'">'+semMot+'</div></div>'+
+    '<div class="kpi"><div class="l">Fora da programação</div><div class="v">'+S.fora.length+'</div></div>';
+}
+function render(){
+  var aid=document.activeElement&&document.activeElement.id;
+  var q=$('#f').value.toLowerCase().trim(), pend=$('#pend').checked;
+  var rows=P.lines.filter(function(l){
+    if(pend&&stOf(l)!=='pen') return false;
+    if(q&&[l.tag,l.etapa,l.frente,l.desc,l.area].join(' ').toLowerCase().indexOf(q)<0) return false; return true; });
+  $('#list').innerHTML=rows.length?rows.map(function(l){
+    var a=S.lines[l.u], s=stOf(l), need=(s==='par'||s==='zero');
+    return '<div class="ln '+s+'" data-u="'+esc(l.u)+'">'+
+      '<div class="ln-h"><span>#'+l.item+' · '+esc(l.tag)+' · '+esc(l.etapa)+'</span><span class="pill '+s+'">'+STX[s]+'</span></div>'+
+      '<div class="ln-d">'+esc(l.desc||'')+(l.area?' · '+esc(l.area):'')+(l.frente?' · <b>'+esc(l.frente)+'</b>':'')+'</div>'+
+      '<div class="ln-m"><span>Programado: <b>'+fmt(l.qtd)+' '+esc(l.und)+'</b></span>'+(l.ini||l.fim?'<span>Período: <b>'+br(l.ini)+(l.fim?' a '+br(l.fim):'')+'</b></span>':'')+
+        (l.sup?'<span>Sup.: '+esc(l.sup)+'</span>':'')+(l.enc?'<span>Enc.: '+esc(l.enc)+'</span>':'')+(l.obs?'<span>Obs.: '+esc(l.obs)+'</span>':'')+'</div>'+
+      '<div class="ln-in">'+
+        '<div><label for="av-'+l.u+'">Avanço ('+esc(l.und)+')</label><div class="av"><input id="av-'+l.u+'" data-k="av" inputmode="decimal" value="'+iv(a.av)+'"><button class="btn s" data-full="1" title="Concluído (100%)">100%</button><button class="btn s" data-zero="1" title="Não executado">0</button></div></div>'+
+        '<div class="'+(need&&!a.motivo?'need':'')+'"><label for="mo-'+l.u+'">Motivo do desvio'+(need?' *':'')+'</label><select id="mo-'+l.u+'" data-k="motivo"'+(need?'':' disabled')+'>'+opts(P.motivos,a.motivo)+'</select></div>'+
+        '<div><label for="dr-'+l.u+'">Data real</label><input type="date" id="dr-'+l.u+'" data-k="dataReal" value="'+esc(a.dataReal)+'" min="'+P.ini+'" max="'+P.fim+'"></div>'+
+        '<div><label for="ob-'+l.u+'">Observação</label><input type="text" id="ob-'+l.u+'" data-k="obsEng" value="'+esc(a.obsEng)+'"></div>'+
+      '</div></div>';
+  }).join(''):'<p class="hint">Nenhuma atividade com esse filtro.</p>';
+  $('#olist').innerHTML=S.fora.length?'<table><thead><tr><th>TAG</th><th>Descrição</th><th>Área</th><th>Etapa</th><th>Qtd.</th><th>Data</th><th>Sup./Enc.</th><th></th></tr></thead><tbody>'+
+    S.fora.map(function(o,i){ return '<tr><td>'+esc(o.tag)+'</td><td>'+esc(o.desc)+'</td><td>'+esc(o.area)+'</td><td>'+esc(o.etapa)+'</td><td>'+fmt(o.qtd)+' '+esc(o.und)+'</td><td>'+br(o.data)+'</td><td>'+esc([o.sup,o.enc].filter(Boolean).join(' / '))+'</td><td><button class="btn s" data-del="'+i+'" aria-label="Excluir">✕</button></td></tr>'; }).join('')+'</tbody></table>':'';
+  kpis();
+  if(aid){ var el=document.getElementById(aid); if(el) el.focus(); }
+}
+$('#list').addEventListener('change',function(e){
+  var k=e.target.getAttribute('data-k'); if(!k) return; var u=e.target.closest('.ln').getAttribute('data-u'), a=S.lines[u];
+  if(k==='av'){ var n=pnum(e.target.value); a.av=(n==null?'':n); var l=P.lines.filter(function(x){return x.u===u;})[0]; if(n!=null&&n>=l.qtd-1e-9) a.motivo=''; }
+  else a[k]=e.target.value;
+  save(); render();
+});
+$('#list').addEventListener('click',function(e){
+  var b=e.target.closest('button'); if(!b) return; var u=b.closest('.ln').getAttribute('data-u'), a=S.lines[u], l=P.lines.filter(function(x){return x.u===u;})[0];
+  if(b.hasAttribute('data-full')){ a.av=l.qtd; a.motivo=''; } else if(b.hasAttribute('data-zero')){ a.av=0; }
+  save(); render(); var m=document.getElementById('mo-'+u); if(m&&!m.disabled&&!a.motivo) m.focus();
+});
+$('#f').addEventListener('input',render); $('#pend').addEventListener('change',render);
+$('#oAdd').addEventListener('click',function(){
+  var tag=$('#oTag').value.trim(), q=pnum($('#oQtd').value);
+  if(!tag){ toast('Informe a TAG.'); $('#oTag').focus(); return; }
+  if(!$('#oEt').value.trim()){ toast('Informe a etapa.'); $('#oEt').focus(); return; }
+  if(!q){ toast('Informe a quantidade.'); $('#oQtd').focus(); return; }
+  S.fora.push({u:Date.now().toString(36)+Math.random().toString(36).slice(2,6), tag:tag, desc:$('#oDesc').value.trim(), area:$('#oArea').value.trim(), etapa:$('#oEt').value.trim(),
+    und:$('#oUnd').value.trim(), qtd:q, data:$('#oData').value, sup:$('#oSup').value.trim(), enc:$('#oEnc').value.trim()});
+  save(); ['#oDesc','#oEt','#oUnd','#oQtd'].forEach(function(s){ $(s).value=''; }); render(); toast('Registrado.');
+});
+$('#olist').addEventListener('click',function(e){ var b=e.target.closest('[data-del]'); if(!b) return; if(!confirm('Excluir este registro?')) return; S.fora.splice(+b.getAttribute('data-del'),1); save(); render(); });
+$('#ret').addEventListener('click',function(){
+  var pen=0, semMot=0; P.lines.forEach(function(l){ var s=stOf(l); if(s==='pen') pen++; if((s==='par'||s==='zero')&&!S.lines[l.u].motivo) semMot++; });
+  if((pen||semMot)&&!confirm((pen?pen+' atividade(s) sem avanço informado.\n':'')+(semMot?semMot+' desvio(s) sem motivo.\n':'')+'\nGerar o arquivo de retorno mesmo assim?')) return;
+  var R={app:'progCivilRetorno', v:1, id:P.id, sem:P.sem, eng:P.eng, gerado:new Date().toISOString(),
+    lines:P.lines.map(function(l){ var a=S.lines[l.u]; return {u:l.u, av:a.av, motivo:a.motivo, dataReal:a.dataReal, obsEng:a.obsEng}; }), fora:S.fora};
+  var nome='RETORNO - '+P.eng+' - '+P.sem+'.json', txt=JSON.stringify(R);
+  if(EMB){ parent.postMessage({tipo:'retorno', id:P.id, nome:nome, json:txt},'*'); return; }
+  var blob=new Blob([txt],{type:'application/json'});
+  // celular: abre o menu Compartilhar (WhatsApp, e-mail…) em vez de baixar
+  if(matchMedia('(pointer:coarse)').matches&&navigator.canShare){ var file=new File([blob],nome,{type:'application/json'});
+    if(navigator.canShare({files:[file]})){ navigator.share({files:[file],title:nome}).then(function(){ toast('Retorno enviado.'); }).catch(function(){}); return; } }
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download=nome; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); },4000);
+  toast('Arquivo de retorno gerado. Envie-o para o planejamento.');
+});
+render();
+})();
+<\/script>
+</body></html></script>
+<script>
+(function(){
+'use strict';
+var LST='apontApp.lista', PK='apontApp.pkg.';
+function $(s){ return document.querySelector(s); }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+function br(s){ return s?s.split('-').reverse().join('/'):''; }
+function ler(k,d){ try{ var v=JSON.parse(localStorage.getItem(k)); return v==null?d:v; }catch(e){ return d; } }
+function grava(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); return true; }catch(e){ alert('Não foi possível salvar neste celular (memória do navegador cheia?).'); return false; } }
+var tt; function toast(m){ var t=$('#toast'); t.textContent=m; t.style.display='block'; clearTimeout(tt); tt=setTimeout(function(){ t.style.display='none'; },3500); }
+function dataHora(ms){ return new Date(ms).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'}); }
+function semN(s){ return parseInt(String(s).replace(/\D/g,''),10)||0; }
+
+function progresso(p){ var S=ler('apont.'+p.id,null), n=p.n, ap=0;
+  if(S&&S.lines) Object.keys(S.lines).forEach(function(u){ var a=S.lines[u]; if(a&&a.av!==''&&a.av!=null) ap++; });
+  return {ap:ap, n:n, fora:S&&S.fora?S.fora.length:0}; }
+
+function lista(){
+  var L=ler(LST,[]).sort(function(a,b){ return semN(b.sem)-semN(a.sem)||(b.gerado>a.gerado?1:-1); });
+  $('#lista').innerHTML=L.length?L.map(function(p){ var g=progresso(p), pc=g.n?Math.round(g.ap/g.n*100):0;
+    return '<div class="sem '+(g.n&&g.ap===g.n?'ok':(g.ap?'par':''))+'">'+
+      '<button class="abre" data-id="'+esc(p.id)+'"><div class="t">'+esc(p.sem)+' · '+esc(p.eng)+'</div>'+
+      '<div class="d">'+br(p.ini)+' a '+br(p.fim)+' · recebido '+dataHora(p.recebido)+'</div>'+
+      '<div class="bar"><i style="width:'+pc+'%"></i></div>'+
+      '<div class="d">'+g.ap+' de '+g.n+' atividade(s) apontada(s)'+(g.fora?' · '+g.fora+' fora da programação':'')+'</div>'+
+      (p.enviado?'<div class="env">✓ retorno enviado em '+dataHora(p.enviado)+'</div>':'')+'</button>'+
+      '<button class="del" data-del="'+esc(p.id)+'" aria-label="Remover '+esc(p.sem)+' deste celular">🗑</button></div>';
+  }).join(''):'<div class="vazio">Nenhuma semana ainda.<br>Toque em <b>Abrir arquivo recebido</b> para começar.</div>';
+}
+
+// lê o pacote de dentro do APONTAMENTO … .html (ou de um .json do mesmo formato)
+function pacoteDe(txt){
+  var t=txt.trim(), P=null;
+  if(t.charAt(0)==='{'){ P=JSON.parse(t); }
+  else { var m=t.match(/<script id="pkg" type="application\/json">([\s\S]*?)<\/script>/); if(m) P=JSON.parse(m[1]); }
+  if(P&&P.app==='progCivilRetorno') throw new Error('Esse é um arquivo de RETORNO (já respondido). Envie-o para o planejamento.');
+  if(!P||P.app!=='progCivilApont'||!P.id||!P.lines) throw new Error('Esse arquivo não é um apontamento da Central de controle CIVIL.');
+  return P;
+}
+function receber(P){
+  var L=ler(LST,[]);
+  if(L.some(function(x){ return x.id===P.id; })){ toast('Essa semana já está no celular.'); abrir(P.id); return; }
+  var ant=L.filter(function(x){ return x.eng===P.eng&&x.sem===P.sem; })[0];
+  if(ant&&confirm('Você já tem a '+P.sem+' de '+P.eng+' (recebida em '+dataHora(ant.recebido)+').\n\nSubstituir pela versão nova, mantendo o que já foi apontado?\n(Cancelar = manter as duas.)')){
+    var V=ler('apont.'+ant.id,null);
+    if(V&&V.lines){ var S={lines:{},fora:V.fora||[]};
+      P.lines.forEach(function(l){ S.lines[l.u]=V.lines[l.u]||{av:(l.av==null?'':l.av), motivo:l.motivo||'', dataReal:l.dataReal||'', obsEng:l.obsEng||''}; });
+      if(!grava('apont.'+P.id,S)) return; }
+    remover(ant.id,true); L=ler(LST,[]);
+  }
+  if(!grava(PK+P.id,P)) return;
+  L.push({id:P.id, eng:P.eng, sem:P.sem, ini:P.ini, fim:P.fim, gerado:P.gerado, n:P.lines.length, recebido:Date.now()});
+  grava(LST,L); lista(); abrir(P.id);
+}
+function remover(id,silencioso){
+  grava(LST,ler(LST,[]).filter(function(x){ return x.id!==id; }));
+  try{ localStorage.removeItem(PK+id); localStorage.removeItem('apont.'+id); }catch(e){}
+  if(!silencioso){ lista(); toast('Semana removida deste celular.'); }
+}
+
+// tela de apontamento = mesmo modelo do .html do PC, aberto dentro do app
+var aberto=null;
+function abrir(id){
+  var P=ler(PK+id,null); if(!P){ toast('Arquivo dessa semana não encontrado.'); return; }
+  var json=JSON.stringify(P).replace(/</g,'\\u003c');
+  var html=$('#engApp').textContent.replace(/<\\\/script>/g,'</'+'script>').replace('__PKG__',function(){ return json; });
+  var f=$('#tela'); f.srcdoc=html; f.hidden=false; aberto=id;
+  history.pushState({ap:id},'');
+}
+function fechar(){ var f=$('#tela'); f.hidden=true; f.srcdoc=''; aberto=null; lista(); }
+window.addEventListener('popstate',function(){ if(aberto) fechar(); });
+window.addEventListener('message',function(e){
+  var f=$('#tela'); if(!aberto||e.source!==f.contentWindow||!e.data) return;
+  if(e.data.tipo==='voltar'){ history.back(); return; }
+  if(e.data.tipo==='retorno') enviar(e.data);
+});
+function marcaEnviado(id){ var L=ler(LST,[]); L.forEach(function(x){ if(x.id===id) x.enviado=Date.now(); }); grava(LST,L); }
+function enviar(d){
+  var blob=new Blob([d.json],{type:'application/json'}), file=new File([blob],d.nome,{type:'application/json'});
+  if(navigator.canShare&&navigator.canShare({files:[file]})){
+    navigator.share({files:[file],title:d.nome}).then(function(){ marcaEnviado(d.id); toast('Retorno enviado.'); })
+      .catch(function(err){ if(err&&err.name!=='AbortError') baixar(blob,d); });
+    return;
+  }
+  baixar(blob,d);
+}
+function baixar(blob,d){
+  var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=d.nome; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); },4000);
+  marcaEnviado(d.id); toast('Arquivo de retorno salvo em Downloads. Envie-o para o planejamento.');
+}
+
+$('#abrir').onclick=function(){ $('#arq').value=''; $('#arq').click(); };
+$('#arq').onchange=function(){
+  var fl=this.files&&this.files[0]; if(!fl) return;
+  fl.text().then(function(t){ receber(pacoteDe(t)); }).catch(function(err){ alert('Não foi possível abrir o arquivo.\n\n'+(err&&err.message||err)); });
+};
+$('#lista').addEventListener('click',function(e){
+  var b=e.target.closest('button'); if(!b) return;
+  if(b.hasAttribute('data-del')){ var id=b.getAttribute('data-del'), p=ler(LST,[]).filter(function(x){ return x.id===id; })[0];
+    if(p&&confirm('Remover a '+p.sem+' de '+p.eng+' deste celular?\n\nOs apontamentos dela serão apagados daqui'+(p.enviado?'':' (o retorno ainda NÃO foi enviado)')+'.')) remover(id);
+    return; }
+  abrir(b.getAttribute('data-id'));
+});
+lista();
+})();
+</script>
+<div id="appUpd" hidden style="position:fixed;left:12px;right:12px;bottom:calc(16px + env(safe-area-inset-bottom));margin:0 auto;width:fit-content;max-width:calc(100vw - 24px);z-index:9999;background:#000;color:#fff;border:1px solid #43b02a;box-shadow:0 0 14px rgba(67,176,42,.35);border-radius:10px;padding:10px 14px;font:14px 'Segoe UI',Arial,sans-serif">✓ App atualizado para a versão mais recente.</div>
+<script>
+/* app instalável: guarda o sistema e as bibliotecas no aparelho para abrir sem internet (versão 2026-10-21-094308)
+   Atualiza sozinho: quando há versão nova publicada, ela assume e a página recarrega uma vez. */
+if('serviceWorker' in navigator && location.protocol!=='file:'){
+  var jaInstalado=!!navigator.serviceWorker.controller; // primeira instalação não recarrega
+  try{ if(sessionStorage.getItem('appAtualizado')){ sessionStorage.removeItem('appAtualizado'); var b=document.getElementById('appUpd'); b.hidden=false; setTimeout(function(){ b.hidden=true; },4000); } }catch(e){}
+  navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(function(reg){
+    if(reg.waiting) reg.waiting.postMessage('ativar'); // destrava versão que ficou esperando
+    setInterval(function(){ reg.update(); }, 60*60*1000);
+  });
+  var recarregou=false;
+  navigator.serviceWorker.addEventListener('controllerchange',function(){ if(recarregou||!jaInstalado) return; recarregou=true;
+    try{ sessionStorage.setItem('appAtualizado','1'); }catch(e){} location.reload(); });
+}
+</script>
+</body>
+</html>
