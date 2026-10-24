@@ -289,6 +289,11 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
   /* evita o zoom automático do iPhone ao tocar em um campo */
   select,input[type=text],input[type=search],input[type=number],input[type=date],textarea{font-size:16px}
   dialog{max-width:calc(100vw - 16px);max-height:calc(100dvh - 16px)}
+  table.fora{table-layout:fixed}
+  table.fora input{width:100%;min-width:0}
+  table.fora th:nth-child(2),table.fora td:nth-child(2){width:72px}
+  table.fora th:nth-child(3),table.fora td:nth-child(3){width:58px}
+  table.fora th:last-child,table.fora td:last-child{width:32px}
 }
 /* área segura (entalhe / barra de gestos) quando aberto como app */
 @media (display-mode: standalone){
@@ -327,6 +332,31 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 .prem-grid .an-in{width:100%}
 .prem-grid .calc-v{font-size:18px;font-weight:700;padding-top:2px;font-variant-numeric:tabular-nums}
 .prem-wide{grid-column:1/-1}
+/* resumo de H.H (2.1) */
+.hh-resumo{margin-top:4px}
+.hh-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px}
+.hh-card{background:var(--panel);border:1px solid var(--line);border-top:4px solid var(--muted);border-radius:10px;padding:10px 12px}
+.hh-card.hh-prog{border-top-color:var(--accent)}
+.hh-card.hh-fora{border-top-color:var(--amber)}
+.hh-card.hh-sal{border-top-color:var(--info)}
+.hh-card.hh-tot{border-top-color:#43b02a;background:var(--accent-soft);box-shadow:0 0 12px rgba(67,176,42,.18)}
+.hh-card.hh-neg{border-top-color:var(--warn);background:var(--warn-soft)}
+.hh-l{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)}
+.hh-v{font-size:24px;font-weight:800;margin-top:2px;font-variant-numeric:tabular-nums}
+.hh-v small{font-size:12px;font-weight:600;color:var(--muted)}
+.hh-card.hh-neg .hh-v{color:var(--warn)}
+.hh-s{font-size:12px;color:var(--muted);margin-top:2px}
+.hh-bar{height:6px;background:var(--line);border-radius:99px;overflow:hidden;margin-top:6px}
+.hh-bar i{display:block;height:100%;background:var(--accent)}
+.hh-card.hh-fora .hh-bar i{background:var(--amber)}
+.hh-stack{display:flex;height:14px;background:var(--line);border-radius:99px;overflow:hidden;margin-top:10px}
+.hh-stack i{display:block;height:100%}
+.hh-stack .hh-prog,.hh-leg .hh-prog{background:var(--accent)}
+.hh-stack .hh-fora,.hh-leg .hh-fora{background:var(--amber)}
+.hh-leg .hh-livre{background:var(--line)}
+.hh-leg{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:12px;color:var(--muted);margin-top:4px}
+.hh-leg span{display:inline-flex;align-items:center;gap:6px}
+.hh-leg span i{width:10px;height:10px;border-radius:3px;display:inline-block}
 .meta-eng{padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--panel2)}
 .meta-v{margin-top:4px;font-size:13px;font-variant-numeric:tabular-nums}
 .fora td{padding:3px 6px}
@@ -2558,6 +2588,28 @@ const inVal=v=>(v==null||v==='')?'':String(Math.round(Number(v)*1e6)/1e6).replac
 const anIn=(id,v,data,cls)=>`<input id="${id}" class="an-in ${cls||''}" inputmode="decimal" value="${inVal(v)}" ${data}>`;
 function pbar(v){ if(v===''||v==null||!isFinite(v)) return '<td class="n"></td>'; const w=Math.max(0,Math.min(100,v*100)); return `<td class="n pbar ${v>1.0001?'over':''}"><i style="width:${w}%"></i><span>${fmtPct(v)}</span></td>`; }
 
+// resumo visual de H.H da semana (aba 2.1): disponível, programado, fora do escopo e saldos
+function hhResumo(disp, prog, fora, horas, ef, hDisp){
+  const saldo=disp-prog, total=saldo-fora;
+  const pct=v=>disp>0?v/disp:0, larg=v=>Math.max(0,Math.min(100,pct(v)*100));
+  const pctTxt=v=>disp>0?fmtPct(pct(v))+' do disponível':'';
+  const card=(cls,lbl,v,sub,barra)=>`<div class="hh-card hh-${cls}${v<0?' hh-neg':''}"><div class="hh-l">${lbl}</div>
+    <div class="hh-v">${fmt(v,0)} <small>H.H</small></div>${barra?`<div class="hh-bar"><i style="width:${larg(v)}%"></i></div>`:''}<div class="hh-s">${sub}</div></div>`;
+  const livre=Math.max(0,disp-prog-fora), uso=prog+fora;
+  return `<div class="prem-wide hh-resumo">
+    <div class="hh-cards">
+      ${card('disp','H.H disponível',disp,`efetivo total ${fmt(Number(ef)||0,0)} × ${fmt(hDisp)} h`)}
+      ${card('prog','H.H programado',prog,pctTxt(prog)||'itens programados da semana',true)}
+      ${card('fora','H.H fora do escopo',fora,pctTxt(fora)||'atividades fora do escopo',true)}
+      ${card('sal','H.H disponível (− fora do escopo)',saldo,'disponível − programado')}
+      ${card('tot','H.H disponível total',total,`disponível − (programado + fora do escopo) ≈ <b>${fmt(total/horas,1)}</b> pessoas`)}
+    </div>
+    ${disp>0?`<div class="hh-stack" role="img" aria-label="Uso do H.H disponível: programado ${fmtPct(pct(prog))}, fora do escopo ${fmtPct(pct(fora))}, livre ${fmtPct(pct(livre))}">
+      <i class="hh-prog" style="width:${larg(prog)}%"></i><i class="hh-fora" style="width:${Math.min(larg(fora),100-larg(prog))}%"></i></div>
+    <div class="hh-leg"><span><i class="hh-prog"></i>Programado ${fmtPct(pct(prog))}</span><span><i class="hh-fora"></i>Fora do escopo ${fmtPct(pct(fora))}</span><span><i class="hh-livre"></i>Livre ${fmtPct(pct(livre))}</span>
+      ${uso>disp+TOL?`<span class="bad-c">⚠ Programado + fora do escopo passa o disponível em ${fmt(uso-disp,0)} H.H</span>`:''}</div>`:''}
+  </div>`;
+}
 function renderAnalise(){
   const box=$('#tab-analise'); if(!box) return;
   const aid=document.activeElement&&box.contains(document.activeElement)?document.activeElement.id:null;
@@ -2578,13 +2630,7 @@ function renderAnalise(){
     <div><label for="ap-ef">Efetivo total</label>${anIn('ap-ef',w.efTotal,'data-an="efTotal"')}</div>
     ${engs.map((e,i)=>`<div class="meta-eng"><label for="ap-m${i}">${esc(e)} – efetivo (und)</label>${anIn('ap-m'+i,w.efEng[e],`data-an="efEng" data-eng="${esc(e)}"`)}
       <div class="meta-v">Meta H.H <b>${fmt(A.metas[i],0)}</b> <span class="hint">(${fmt(Number(w.efEng[e])||0,0)} × ${fmt(A.hDisp)} h)</span></div></div>`).join('')}
-    <div class="prem-wide chips">
-      <span class="chip">H.H disponível <b>${fmt(tot.hhDisp,0)}</b></span>
-      <span class="chip">H.H programado <b>${fmt(tot.hhProg,0)}</b></span>
-      <span class="chip">Disponível − programado <b class="${saldo<0?'bad-c':''}">${fmt(saldo,0)}</b></span>
-      <span class="chip">Fora do escopo <b>${fmt(A.foraHH,0)}</b> H.H</span>
-      <span class="chip">Saldo após fora do escopo <b class="${saldo-A.foraHH<0?'bad-c':''}">${fmt(saldo-A.foraHH,0)}</b> H.H ≈ <b>${fmt((saldo-A.foraHH)/A.horas,1)}</b> pessoas</span>
-    </div>
+    ${hhResumo(tot.hhDisp, tot.hhProg, A.foraHH, A.horas, w.efTotal, A.hDisp)}
     <div class="prem-wide">
       <label>Atividades fora do escopo</label>
       <table class="fora"><thead><tr><th>Atividade</th><th class="n">Efetivo</th><th class="n">H.H</th><th></th></tr></thead><tbody>
@@ -3222,7 +3268,7 @@ window.__prog={parseBase:(buf,n)=>{ const b=parseBase(buf,n); setBase(b); return
 </script>
 <div id="appUpd" hidden style="position:fixed;left:12px;right:12px;bottom:calc(16px + env(safe-area-inset-bottom));margin:0 auto;width:fit-content;max-width:calc(100vw - 24px);z-index:9999;background:#000;color:#fff;border:1px solid #43b02a;box-shadow:0 0 14px rgba(67,176,42,.35);border-radius:10px;padding:10px 14px;font:14px 'Segoe UI',Arial,sans-serif">✓ App atualizado para a versão mais recente.</div>
 <script>
-/* app instalável: guarda o sistema e as bibliotecas no aparelho para abrir sem internet (versão 2026-10-21-094308)
+/* app instalável: guarda o sistema e as bibliotecas no aparelho para abrir sem internet (versão 2026-10-24-142503)
    Atualiza sozinho: quando há versão nova publicada, ela assume e a página recarrega uma vez. */
 if('serviceWorker' in navigator && location.protocol!=='file:'){
   var jaInstalado=!!navigator.serviceWorker.controller; // primeira instalação não recarrega
