@@ -1,0 +1,929 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Planta de Programação</title>
+<!-- Cópia integrada à Central de controle CIVIL (aba 4. Mapa geral). Original: C:PROJETOSMAPA GERALplanta.html -->
+<style>
+:root{
+  --bg:#0f1418; --panel:#171e24; --panel2:#1e272f; --line:#2c3842; --text:#e6edf2; --muted:#8fa1ae;
+  --accent:#4fb3ff; --accent2:#7bd88f; --danger:#ff6b6b; --warn:#ffb84d;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,Segoe UI,Roboto,sans-serif}
+button,input,select,textarea{font:inherit;color:inherit}
+button{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:6px 10px;cursor:pointer}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);border-color:var(--accent);color:#06121c;font-weight:600}
+button.danger{border-color:#6b2c2c;color:var(--danger)}
+button.on{background:#244256;border-color:var(--accent)}
+label.chk{white-space:nowrap;display:inline-flex;align-items:center;gap:6px;margin:0;font-size:13px;color:var(--text);cursor:pointer;padding:5px 10px;border:1px solid var(--line);border-radius:6px;background:var(--panel2)}
+label.chk input{width:auto;margin:0}
+label.chk:has(input:checked){border-color:var(--accent);background:#244256}
+button:disabled{opacity:.4;cursor:default;border-color:var(--line)}
+input,select,textarea{background:#0d1317;border:1px solid var(--line);border-radius:6px;padding:6px 8px;width:100%}
+textarea{resize:vertical;min-height:60px}
+label{display:block;font-size:12px;color:var(--muted);margin:8px 0 3px}
+
+#app{display:grid;grid-template-rows:auto 1fr;height:100%}
+header{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap}
+header button,#filterInfo{white-space:nowrap}
+header h1{font-size:15px;margin:0 8px 0 0;font-weight:600}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;border-radius:0;background:transparent;padding:6px 14px}
+.seg button.on{background:var(--accent);color:#06121c;font-weight:600}
+.spacer{flex:1}
+.tools{display:flex;gap:6px;align-items:center;flex-wrap:wrap;min-width:0}
+.hidden{display:none!important}
+
+main{position:relative;display:flex;min-height:0}
+#stage{position:relative;flex:1;min-width:0;overflow:hidden;background:#0a0e11}
+#map{width:100%;height:100%;display:block;touch-action:none;user-select:none}
+#map.pan{cursor:grab}#map.panning{cursor:grabbing}#map.cross{cursor:crosshair}
+
+.area-poly{stroke-width:2;vector-effect:non-scaling-stroke;cursor:pointer;transition:fill-opacity .15s}
+.area-poly:hover{fill-opacity:.42}
+.area-poly.sel{stroke:#fff;stroke-width:3}
+.area-label{pointer-events:none;fill:#fff;font-weight:600;paint-order:stroke;stroke:#000a;stroke-width:3px;text-anchor:middle;dominant-baseline:middle}
+.vtx{fill:#fff;stroke:#000;vector-effect:non-scaling-stroke;cursor:move}
+.mid{fill:var(--accent);fill-opacity:.7;stroke:#000;vector-effect:non-scaling-stroke;cursor:copy}
+.draft{fill:#4fb3ff33;stroke:var(--accent);stroke-dasharray:6 4;vector-effect:non-scaling-stroke;stroke-width:2;pointer-events:none}
+.photo-pin{cursor:pointer}
+.photo-pin circle{vector-effect:non-scaling-stroke}
+
+#hud{position:absolute;left:12px;bottom:12px;display:flex;gap:6px;align-items:center}
+#hud button{background:#171e24e6}
+#crumb{position:absolute;left:12px;top:12px;display:flex;gap:8px;align-items:center;background:#171e24e6;border:1px solid var(--line);border-radius:8px;padding:6px 10px}
+#hint{position:absolute;right:12px;bottom:12px;background:#171e24e6;border:1px solid var(--line);border-radius:8px;padding:6px 10px;color:var(--muted);font-size:12px;max-width:420px}
+#empty{position:absolute;left:50%;top:12px;transform:translateX(-50%);display:flex;align-items:center;gap:12px;background:#171e24ee;border:1px dashed var(--line);border-radius:10px;padding:8px 12px}
+
+aside{width:440px;max-width:90vw;background:var(--panel);border-left:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+aside .head{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line)}
+aside .head h2{margin:0;font-size:16px;flex:1}
+aside .body{padding:12px 14px;overflow:auto;flex:1}
+.swatch{width:14px;height:14px;border-radius:3px;display:inline-block;border:1px solid #0006}
+.muted{color:var(--muted)}
+.row{display:flex;gap:8px;align-items:center}
+.row>*{flex:1}
+.list{display:flex;flex-direction:column;gap:4px;margin-top:6px}
+.list .item{display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;cursor:pointer;background:var(--panel2)}
+.list .item:hover{border-color:var(--accent)}
+.list .item.sel{border-color:var(--accent);background:#20374a}
+h3{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:16px 0 6px}
+.card{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:10px;margin-top:8px}
+
+/* Gantt semanal */
+.week-nav{display:flex;align-items:center;gap:6px}
+.week-nav strong{flex:1;text-align:center;font-size:13px}
+.gantt{display:grid;grid-template-columns:repeat(7,1fr);gap:0;margin-top:8px;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.gantt .dh{font-size:11px;text-align:center;padding:4px 0;background:#0d1317;color:var(--muted);border-right:1px solid var(--line)}
+.gantt .dh.today{color:var(--accent);font-weight:700}
+.gantt .bar-row{grid-column:1/-1;display:grid;grid-template-columns:repeat(7,1fr);border-top:1px solid var(--line);cursor:pointer;min-height:28px;position:relative}
+.gantt .bar-row:hover{background:#ffffff08}
+.gantt .bar{margin:4px 2px;border-radius:4px;padding:2px 6px;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#06121c;font-weight:600}
+.gantt .none{grid-column:1/-1;padding:10px;color:var(--muted);font-size:12px;text-align:center;border-top:1px solid var(--line)}
+.st{font-size:11px;padding:1px 6px;border-radius:10px;color:#06121c;font-weight:600;white-space:nowrap}
+
+dialog{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:0;max-width:92vw}
+dialog::backdrop{background:#000b}
+#photoView{position:relative;width:88vw;height:78vh;overflow:hidden;background:#05080b;cursor:zoom-in;touch-action:none;user-select:none}
+#photoView.zoomed{cursor:grab}#photoView.dragging{cursor:grabbing}
+#photoView img{position:absolute;left:0;top:0;transform-origin:0 0;max-width:none;-webkit-user-drag:none;pointer-events:none}
+#photoZoomBar{position:absolute;right:10px;top:10px;display:flex;gap:4px;align-items:center;background:#171e24e6;border:1px solid var(--line);border-radius:8px;padding:4px}
+#photoZoomBar span{min-width:48px;text-align:center;font-size:12px;color:var(--muted)}
+#photoDlg .cap{padding:10px 14px;display:flex;gap:10px;align-items:center}
+.thumb{width:100%;max-height:200px;object-fit:cover;border-radius:6px;border:1px solid var(--line);margin-top:6px}
+.kbd{font-family:ui-monospace,Consolas,monospace;font-size:11px;border:1px solid var(--line);border-radius:4px;padding:0 4px}
+/* celular / tela estreita: painel da área embaixo da planta */
+@media (max-width:700px){
+  header{gap:6px;padding:6px 8px}
+  header h1{display:none}
+  #hwLabel{min-width:0!important;font-size:12px}
+  #filterInfo,#hint{display:none}
+  main{flex-direction:column}
+  #stage{flex:1 1 45%;min-height:240px}
+  aside{width:100%;max-width:none;flex:1 1 55%;border-left:0;border-top:1px solid var(--line)}
+  #crumb{padding:4px 6px}
+  #photoView{width:96vw;height:70vh}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>Planta de Programação</h1>
+    <div class="seg" id="modeSeg">
+      <button data-mode="above" class="on" title="Visualização e programação">Aboveground</button>
+      <button data-mode="under" title="Edição da planta">Underground</button>
+    </div>
+    <div class="tools" id="viewTools">
+      <div class="week-nav">
+        <button id="hwPrev" title="Semana anterior">◀</button>
+        <strong id="hwLabel" style="min-width:230px;text-align:center"></strong>
+        <button id="hwNext" title="Próxima semana">▶</button>
+        <button id="hwToday">Hoje</button>
+      </div>
+      <label class="chk" title="Mostra só as áreas com atividades na semana selecionada">
+        <input type="checkbox" id="onlyScheduled"> Apenas áreas programadas
+      </label>
+      <span class="muted" id="filterInfo" style="font-size:12px"></span>
+      <button id="btnPhotos" title="Exibir/ocultar todos os pontos de foto (planta geral e áreas)"></button>
+    </div>
+    <div class="tools hidden" id="editTools">
+      <div class="seg" id="toolSeg">
+        <button data-tool="select" class="on" title="Selecionar, mover vértices (V)">Selecionar</button>
+        <button data-tool="draw" title="Desenhar nova área (N)">Nova área</button>
+        <button data-tool="photo" title="Adicionar ponto de foto (F)">Ponto de foto</button>
+      </div>
+      <button id="btnUndo" title="Desfazer (Ctrl+Z)" disabled>↶ Desfazer</button>
+      <button id="btnRedo" title="Refazer (Ctrl+Y)" disabled>↷ Refazer</button>
+    </div>
+    <div class="spacer"></div>
+    <button id="btnLoadPlan" title="Carregar ou trocar a imagem da planta">Carregar planta</button>
+    <button id="btnExport" title="Exportar dados (JSON)">Exportar</button>
+    <button id="btnImport" title="Importar dados (JSON)">Importar</button>
+    <input type="file" id="filePlan" accept="image/*" hidden>
+    <input type="file" id="fileImport" accept="application/json,.json" hidden>
+    <input type="file" id="filePhoto" accept="image/*" hidden>
+  </header>
+  <main>
+    <div id="stage">
+      <svg id="map" class="pan" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <pattern id="grid" width="50" height="50" patternUnits="userSpaceOnUse">
+            <path d="M50 0H0V50" fill="none" stroke="#ffffff10" stroke-width="1"/>
+          </pattern>
+          <mask id="focusMask" maskUnits="userSpaceOnUse">
+            <rect id="maskBg" fill="#fff"/>
+            <polygon id="maskHole" fill="#000"/>
+          </mask>
+        </defs>
+        <rect id="planBg" fill="url(#grid)"/>
+        <image id="planImg" preserveAspectRatio="none"/>
+        <g id="areasLayer"></g>
+        <rect id="dim" fill="#05080b" fill-opacity=".72" mask="url(#focusMask)" class="hidden" pointer-events="none"/>
+        <g id="focusOutline"></g>
+        <g id="draftLayer"></g>
+        <g id="pointsLayer"></g>
+        <g id="handlesLayer"></g>
+      </svg>
+      <div id="crumb" class="hidden">
+        <button id="btnBack">← Planta geral</button>
+        <strong id="crumbName"></strong>
+      </div>
+      <div id="empty" class="hidden">
+        <span>Nenhuma imagem de planta carregada.</span>
+        <button class="primary" onclick="document.getElementById('filePlan').click()">Carregar planta</button>
+      </div>
+      <div id="hud">
+        <button id="zIn" title="Aproximar">＋</button>
+        <button id="zOut" title="Afastar">－</button>
+        <button id="zFit" title="Enquadrar">⤢</button>
+      </div>
+      <div id="hint"></div>
+    </div>
+    <aside id="panel" class="hidden">
+      <div class="head"><h2 id="panelTitle"></h2><button id="btnClosePanel" title="Fechar">✕</button></div>
+      <div class="body" id="panelBody"></div>
+    </aside>
+  </main>
+</div>
+
+<dialog id="photoDlg">
+  <div id="photoView">
+    <img id="photoDlgImg" alt="">
+    <div id="photoZoomBar">
+      <button id="pzOut" title="Afastar (−)">－</button>
+      <span id="pzLevel">100%</span>
+      <button id="pzIn" title="Aproximar (+)">＋</button>
+      <button id="pzFit" title="Ajustar à janela (0)">⤢</button>
+    </div>
+  </div>
+  <div class="cap"><strong id="photoDlgTitle" style="flex:1"></strong><span class="muted" id="photoDlgArea"></span><button onclick="photoDlg.close()">Fechar</button></div>
+</dialog>
+
+<script>
+/* ============================================================
+   Planta de Programação — modo Aboveground (uso) / Underground (edição)
+   Dados persistidos em IndexedDB; exportáveis em JSON.
+   Coordenadas das áreas e pontos em pixels da imagem da planta.
+   ============================================================ */
+
+const STATUS = {
+  programada: {label:'Programada', color:'#4fb3ff'},
+  andamento:  {label:'Em andamento', color:'#ffb84d'},
+  concluida:  {label:'Concluída', color:'#7bd88f'},
+  impedida:   {label:'Impedida', color:'#ff6b6b'},
+};
+const PALETTE = ['#9ad14b','#4fb3ff','#ffb84d','#c792ea','#ff7eb6','#5ee6d0','#f5e663','#ff8a5b'];
+
+// Planta padrão: planta.jpg (4000 × 2250 px), ao lado deste arquivo.
+// Áreas iniciais traçadas em escala 1600 × 900 e multiplicadas por SEED_K.
+const REF_W = 4000, REF_H = 2250, DEFAULT_PLAN = 'planta.jpg', SEED_K = REF_W/1600;
+const R = (x1,y1,x2,y2) => [[x1,y1],[x2,y1],[x2,y2],[x1,y2]];
+function seedState(){
+  const a = (name, points, color='#9ad14b', desc='') => ({id:uid(), name, desc, color, points:points.map(([x,y])=>[x*SEED_K,y*SEED_K])});
+  return {
+    version: 1,
+    plan: {src: DEFAULT_PLAN, w: REF_W, h: REF_H},
+    areas: [
+      a('UTG', [[105,390],[756,390],[756,570],[658,570],[658,648],[175,648],[150,600],[125,520],[105,440]]),
+      a('ÁREA 12', [[660,385],[700,352],[780,302],[870,280],[960,250],[1010,200],[1030,130],[1060,95],[1090,140],[1120,220],[1170,320],[1195,385]]),
+      a('ÁREA 02', R(766,393,890,452)),
+      a('ÁREA 03', R(898,390,1040,455)),
+      a('ÁREA 10', R(1046,390,1140,438)),
+      a('ÁREA 09', R(1046,443,1140,488)),
+      a('ÁREA 08', R(1046,493,1140,540)),
+      a('ÁREA 01', R(770,462,870,565)),
+      a('ÁREA 04', R(880,462,940,512)),
+      a('ÁREA 03', R(880,518,940,566)),
+      a('ÁREA 06', R(946,460,1040,514)),
+      a('ÁREA 07', [[946,519],[1040,519],[1040,545],[1140,545],[1140,568],[946,568]]),
+      a('ÁREA 02', R(662,575,757,642)),
+      a('ÁREA 16', R(766,575,890,642)),
+      a('ÁREA 16', R(900,575,1140,642)),
+    ],
+    photos: [],      // {id, scope:'geral'|areaId, x, y, title, img}
+    activities: [],  // {id, areaId, title, resp, start, end, status, obs}
+  };
+}
+
+/* ---------------- utilidades ---------------- */
+function uid(){ return Math.random().toString(36).slice(2,10) + Date.now().toString(36).slice(-4); }
+const $ = s => document.querySelector(s);
+const NS = 'http://www.w3.org/2000/svg';
+function el(tag, attrs={}, parent){ const e=document.createElementNS(NS,tag); for(const k in attrs) e.setAttribute(k,attrs[k]); parent&&parent.appendChild(e); return e; }
+function esc(s){ return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function centroid(pts){
+  let a=0,cx=0,cy=0;
+  for(let i=0;i<pts.length;i++){ const [x1,y1]=pts[i],[x2,y2]=pts[(i+1)%pts.length]; const f=x1*y2-x2*y1; a+=f; cx+=(x1+x2)*f; cy+=(y1+y2)*f; }
+  if(Math.abs(a)<1e-6){ const n=pts.length; return [pts.reduce((s,p)=>s+p[0],0)/n, pts.reduce((s,p)=>s+p[1],0)/n]; }
+  return [cx/(3*a), cy/(3*a)];
+}
+function bbox(pts){ const xs=pts.map(p=>p[0]), ys=pts.map(p=>p[1]); return {x:Math.min(...xs), y:Math.min(...ys), w:Math.max(...xs)-Math.min(...xs), h:Math.max(...ys)-Math.min(...ys)}; }
+function iso(d){ return d.toISOString().slice(0,10); }
+function parseISO(s){ const [y,m,d]=s.split('-').map(Number); return new Date(Date.UTC(y,m-1,d)); }
+function mondayOf(d){ const x=new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())); const wd=(x.getUTCDay()+6)%7; x.setUTCDate(x.getUTCDate()-wd); return x; }
+function addDays(d,n){ const x=new Date(d); x.setUTCDate(x.getUTCDate()+n); return x; }
+const mondayOfISO = s => { const [y,m,d]=s.split('-').map(Number); return mondayOf(new Date(y,m-1,d)); };  // sem erro de fuso
+const DOW = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
+function fmtDM(d){ return String(d.getUTCDate()).padStart(2,'0')+'/'+String(d.getUTCMonth()+1).padStart(2,'0'); }
+
+// Numeração das semanas igual à Central de controle CIVIL (SEM-001 = 04/03/2024): 19/10/2026 é a semana 138.
+const PROJECT_WEEK_REF = {monday:'2026-10-19', number:138};
+function projectWeek(monday){ return PROJECT_WEEK_REF.number + Math.round((monday - parseISO(PROJECT_WEEK_REF.monday))/(7*864e5)); }
+function weekLabel(monday){ const end=addDays(monday,6); return `Semana ${projectWeek(monday)} · ${fmtDM(monday)} – ${fmtDM(end)}/${end.getUTCFullYear()}`; }
+
+/* ---------------- persistência (IndexedDB, com fallback em memória) ---------------- */
+const DB = {
+  db:null,
+  async open(){
+    try{
+      this.db = await new Promise((res,rej)=>{ const r=indexedDB.open('planta-programacao',1); r.onupgradeneeded=()=>r.result.createObjectStore('kv'); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);
+        setTimeout(()=>rej(new Error('IndexedDB não respondeu')), 3000); });
+    }catch(e){ console.warn('IndexedDB indisponível; dados ficarão só em memória.', e);
+      alert('Não foi possível acessar o armazenamento do navegador. As alterações desta sessão não serão salvas; use Exportar antes de fechar.'); }
+  },
+  async get(k){ if(!this.db) return null; return new Promise(res=>{ const r=this.db.transaction('kv').objectStore('kv').get(k); r.onsuccess=()=>res(r.result??null); r.onerror=()=>res(null); }); },
+  async set(k,v){ if(!this.db) return; return new Promise(res=>{ const t=this.db.transaction('kv','readwrite'); t.objectStore('kv').put(v,k); t.oncomplete=res; t.onerror=res; }); },
+};
+let saveTimer=null;
+function save(){ clearTimeout(saveTimer); saveTimer=setTimeout(()=>DB.set('state', S), 250); }
+
+/* ---------------- desfazer / refazer (edições do Underground) ----------------
+   Cada instantâneo guarda planta, áreas e pontos de foto. As atividades são
+   alimentadas no Aboveground e não entram no histórico: ao restaurar, ficam as
+   atuais, e voltam apenas as de áreas que o instantâneo traz de volta. */
+const HIST = {undo:[], redo:[], max:100};
+function snapshot(){
+  return {
+    plan:{...S.plan},
+    areas:S.areas.map(a=>({...a, points:a.points.map(p=>[...p])})),
+    photos:S.photos.map(p=>({...p})),
+    activities:S.activities.map(t=>({...t})),
+  };
+}
+function checkpoint(){
+  HIST.undo.push(snapshot()); if(HIST.undo.length>HIST.max) HIST.undo.shift();
+  HIST.redo=[]; U.justCreatedPhoto=null; updateHistBtns();
+}
+function restore(snap){
+  const curIds=new Set(S.areas.map(a=>a.id)), ids=new Set(snap.areas.map(a=>a.id));
+  S.activities=[...S.activities.filter(t=>ids.has(t.areaId)), ...snap.activities.filter(t=>ids.has(t.areaId) && !curIds.has(t.areaId))];
+  S.plan=snap.plan; S.areas=snap.areas; S.photos=snap.photos;
+  if(!areaById(U.focus)) U.focus=null;
+  if(!areaById(U.selArea)) U.selArea=null;
+  if(!S.photos.some(p=>p.id===U.selPhoto)) U.selPhoto=null;
+  U.draft=null; U.draftHover=null;
+  save(); render(); updateHistBtns();
+}
+function undo(){ if(!HIST.undo.length) return; HIST.redo.push(snapshot()); restore(HIST.undo.pop()); }
+function redo(){ if(!HIST.redo.length) return; HIST.undo.push(snapshot()); restore(HIST.redo.pop()); }
+function clearHistory(){ HIST.undo=[]; HIST.redo=[]; updateHistBtns(); }
+function updateHistBtns(){
+  $('#btnUndo').disabled=!HIST.undo.length; $('#btnRedo').disabled=!HIST.redo.length;
+  $('#btnUndo').title=`Desfazer (Ctrl+Z) · ${HIST.undo.length} passo(s)`; $('#btnRedo').title=`Refazer (Ctrl+Y) · ${HIST.redo.length} passo(s)`;
+}
+// campos de texto: um único passo por sessão de digitação (do foco até sair do campo)
+function trackTyping(input, apply){
+  let marked=false;
+  input.addEventListener('focus',()=>marked=false);
+  input.addEventListener('input',e=>{ if(!marked){ checkpoint(); marked=true; } apply(e); });
+}
+
+/* ---------------- estado ---------------- */
+let S;                 // dados persistidos
+const U = {            // estado de interface
+  mode:'above', tool:'select',
+  focus:null,          // id da área expandida
+  selArea:null, selPhoto:null, selAct:null,
+  week: mondayOf(new Date()),
+  vb:{x:0,y:0,w:REF_W,h:REF_H},
+  draft:null,          // pontos da nova área em desenho
+};
+
+/* ---------------- SVG / viewBox ---------------- */
+const svg = $('#map');
+function applyVB(){ const v=U.vb; svg.setAttribute('viewBox',`${v.x} ${v.y} ${v.w} ${v.h}`); renderHandlesAndPins(); }
+function toPlan(evt){ const p=svg.createSVGPoint(); p.x=evt.clientX; p.y=evt.clientY; const m=svg.getScreenCTM().inverse(); const r=p.matrixTransform(m); return [r.x,r.y]; }
+function unitsPerPx(){ const m=svg.getScreenCTM(); return m? 1/m.a : 1; }
+function fitTo(b, pad=0.08, animate=true){
+  const r = svg.getBoundingClientRect(); const ar = r.width/Math.max(r.height,1);
+  let w=b.w*(1+pad*2), h=b.h*(1+pad*2);
+  if(w/h < ar) w = h*ar; else h = w/ar;
+  const target={x:b.x+b.w/2-w/2, y:b.y+b.h/2-h/2, w, h};
+  animate ? animateVB(target) : (U.vb=target, applyVB());
+}
+let animId=0;
+function animateVB(t){
+  const s={...U.vb}, id=++animId, t0=performance.now(), D=380;
+  const step=now=>{ if(id!==animId) return; const k=Math.min(1,(now-t0)/D), e=1-Math.pow(1-k,3);
+    U.vb={x:s.x+(t.x-s.x)*e, y:s.y+(t.y-s.y)*e, w:s.w+(t.w-s.w)*e, h:s.h+(t.h-s.h)*e}; applyVB(); if(k<1) requestAnimationFrame(step); };
+  requestAnimationFrame(step);
+}
+function zoomAt(factor, px, py){
+  animId++;
+  const v=U.vb, nw=Math.min(Math.max(v.w*factor, 20), S.plan.w*6), f=nw/v.w;
+  U.vb={x:px-(px-v.x)*f, y:py-(py-v.y)*f, w:v.w*f, h:v.h*f}; applyVB();
+}
+function fitAll(animate=true){ fitTo({x:0,y:0,w:S.plan.w,h:S.plan.h}, 0.02, animate); }
+// espera um quadro para o painel lateral abrir/fechar antes de medir o mapa
+function fitFocusOrAll(animate=true){ requestAnimationFrame(()=>{ const a=areaById(U.focus); a ? fitTo(bbox(a.points),0.12,animate) : fitAll(animate); }); }
+
+/* ---------------- render ---------------- */
+const areaById = id => S.areas.find(a=>a.id===id);
+
+function renderPlan(){
+  const {w,h,src}=S.plan;
+  for(const id of ['planBg','maskBg','dim','focusMask']){ const r=$('#'+id); r.setAttribute('x',-w*3); r.setAttribute('y',-h*3); r.setAttribute('width',w*7); r.setAttribute('height',h*7); }
+  const img=$('#planImg'); img.setAttribute('width',w); img.setAttribute('height',h);
+  if(src) img.setAttribute('href',src); else img.removeAttribute('href');
+  $('#empty').classList.toggle('hidden', !!src);
+}
+
+function weekActivities(areaId){
+  const ws=U.week, we=addDays(ws,6);
+  return S.activities.filter(t=>t.areaId===areaId && parseISO(t.start)<=we && parseISO(t.end||t.start)>=ws);
+}
+
+/* ---------------- filtro "apenas áreas programadas" (Aboveground) ---------------- */
+U.onlyScheduled = (()=>{ try{ return localStorage.getItem('planta.onlyScheduled')==='1'; }catch(e){ return false; } })();
+// a área expandida continua visível mesmo sem atividades, para poder programá-la
+function isHiddenByFilter(a){
+  return U.mode==='above' && U.onlyScheduled && U.focus!==a.id && !weekActivities(a.id).length;
+}
+function setWeek(d){ U.week=d; renderAreas(); renderPanel(); renderWeekBar(); }
+function renderWeekBar(){
+  const ws=U.week, we=addDays(ws,6);
+  $('#hwLabel').textContent=weekLabel(ws);
+  $('#onlyScheduled').checked=U.onlyScheduled;
+  const n=S.areas.filter(a=>weekActivities(a.id).length).length;
+  $('#filterInfo').textContent = U.onlyScheduled
+    ? (n ? `${n} de ${S.areas.length} áreas com programação` : 'Nenhuma área programada nesta semana')
+    : `${n} área(s) com programação`;
+}
+
+function renderAreas(){
+  const L=$('#areasLayer'); L.innerHTML='';
+  const fs = Math.max(10, S.plan.w/110);
+  for(const a of S.areas){
+    const isFocus = U.focus===a.id;
+    if(U.focus && !isFocus && U.mode==='above') continue;
+    if(isHiddenByFilter(a)) continue;
+    const op = isFocus ? 0 : (U.mode==='under' ? .32 : .26);
+    const poly = el('polygon',{points:a.points.map(p=>p.join(',')).join(' '), fill:a.color, 'fill-opacity':op, stroke:a.color,
+      class:'area-poly'+(U.selArea===a.id && U.mode==='under'?' sel':''), 'data-kind':'area', 'data-id':a.id}, L);
+    if(isFocus) poly.style.pointerEvents='none';
+    if(!isFocus){
+      const [cx,cy]=centroid(a.points); const b=bbox(a.points);
+      const size = Math.min(fs, b.h*0.32, b.w/Math.max(a.name.length,4)*1.7);
+      const t=el('text',{x:cx,y:cy,class:'area-label','font-size':size},L); t.textContent=a.name;
+      if(U.mode==='above'){ const n=weekActivities(a.id).length; if(n){ const t2=el('text',{x:cx,y:cy+size*1.05,class:'area-label','font-size':size*.7,fill:'#ffd36b'},L); t2.textContent=`${n} ativ.`; } }
+    }
+  }
+  // máscara de foco
+  const f=areaById(U.focus);
+  $('#dim').classList.toggle('hidden', !f);
+  $('#focusOutline').innerHTML='';
+  if(f){
+    $('#maskHole').setAttribute('points', f.points.map(p=>p.join(',')).join(' '));
+    el('polygon',{points:f.points.map(p=>p.join(',')).join(' '), fill:'none', stroke:f.color, 'stroke-width':3, 'vector-effect':'non-scaling-stroke', 'pointer-events':'none'}, $('#focusOutline'));
+  }
+  $('#crumb').classList.toggle('hidden', !f);
+  if(f) $('#crumbName').textContent = f.name;
+}
+
+function renderHandlesAndPins(){
+  const upp=unitsPerPx();
+  // pontos de foto
+  const P=$('#pointsLayer'); P.innerHTML='';
+  // Aboveground: o botão 📷 exibe todos os pontos (gerais e internos) ou nenhum.
+  // Underground: só os pontos do contexto atual (planta geral ou área expandida).
+  const scope = U.focus || 'geral';
+  const visible = U.mode==='above' ? (U.showPhotos ? S.photos : []) : S.photos.filter(p=>p.scope===scope);
+  for(const ph of visible){
+    const g=el('g',{class:'photo-pin','data-kind':'photo','data-id':ph.id, transform:`translate(${ph.x},${ph.y})`},P);
+    const r=9*upp, sel=U.selPhoto===ph.id && U.mode==='under';
+    el('circle',{r:r*1.9,fill:'#000',  'fill-opacity':.35,'data-kind':'photo','data-id':ph.id},g);
+    el('circle',{r:r,fill:ph.img?'#ff5c8a':'#888',stroke:sel?'#fff':'#000','stroke-width':sel?3:1.5,'data-kind':'photo','data-id':ph.id},g);
+    // ícone câmera simples
+    el('rect',{x:-r*.55,y:-r*.35,width:r*1.1,height:r*.75,rx:r*.12,fill:'#fff','pointer-events':'none'},g);
+    el('circle',{r:r*.22,fill:ph.img?'#ff5c8a':'#888',cy:r*.02,'pointer-events':'none'},g);
+    if(ph.title){ const t=el('text',{y:-r*2.2,class:'area-label','font-size':12*upp},g); t.textContent=ph.title; }
+  }
+  // alças de edição
+  const H=$('#handlesLayer'); H.innerHTML='';
+  if(U.mode==='under' && U.tool==='select' && U.selArea){
+    const a=areaById(U.selArea); if(a){
+      const n=a.points.length;
+      a.points.forEach((p,i)=>{ const q=a.points[(i+1)%n];
+        el('circle',{cx:(p[0]+q[0])/2, cy:(p[1]+q[1])/2, r:4*upp, class:'mid','data-kind':'mid','data-id':a.id,'data-i':i},H); });
+      a.points.forEach((p,i)=> el('circle',{cx:p[0],cy:p[1],r:6*upp,class:'vtx','data-kind':'vtx','data-id':a.id,'data-i':i},H));
+    }
+  }
+  // rascunho
+  const D=$('#draftLayer'); D.innerHTML='';
+  if(U.draft && U.draft.length){
+    const pts=[...U.draft, ...(U.draftHover?[U.draftHover]:[])];
+    el('polyline',{points:pts.map(p=>p.join(',')).join(' '),class:'draft'},D);
+    U.draft.forEach((p,i)=> el('circle',{cx:p[0],cy:p[1],r:(i===0?7:5)*upp,fill:i===0?'#7bd88f':'#fff',stroke:'#000','vector-effect':'non-scaling-stroke'},D));
+  }
+}
+
+function renderHint(){
+  const h=$('#hint');
+  if(U.mode==='above'){
+    h.innerHTML = U.focus
+      ? 'Clique nos pontos <b>📷</b> para ver as fotos · <span class="kbd">Esc</span> volta para a planta geral'
+      : 'Roda do mouse = zoom · arrastar = mover · clique numa área para expandir e abrir a programação';
+  } else {
+    h.innerHTML = {
+      select:'Clique numa área para editar · arraste os vértices brancos · clique nos pontos azuis para criar vértice · duplo clique no vértice remove · arraste a área selecionada para movê-la',
+      draw:'Clique para adicionar vértices · clique no primeiro ponto (verde), duplo clique ou <span class="kbd">Enter</span> para fechar · <span class="kbd">Esc</span> cancela',
+      photo:`Clique na planta para criar um ponto de foto ${U.focus?'<b>dentro da área expandida</b>':'<b>na planta geral</b>'} · arraste pontos existentes para mover`,
+    }[U.tool];
+  }
+}
+
+function render(){
+  renderPlan(); renderAreas(); renderHandlesAndPins(); renderHint(); renderPanel(); renderWeekBar(); renderPhotoBtn();
+  svg.classList.toggle('cross', U.mode==='under' && (U.tool==='draw'||U.tool==='photo'));
+}
+
+/* ---------------- painel lateral ---------------- */
+function openPanel(){ $('#panel').classList.remove('hidden'); }
+function closePanel(){ $('#panel').classList.add('hidden'); }
+
+function renderPanel(){
+  const body=$('#panelBody');
+  if(U.mode==='above'){
+    const a=areaById(U.focus);
+    if(!a){ closePanel(); return; }
+    $('#panelTitle').innerHTML=`<span class="swatch" style="background:${a.color}"></span> ${esc(a.name)}`;
+    body.innerHTML = panelAreaView(a);
+    bindAreaView(a);
+  } else {
+    $('#panelTitle').textContent='Edição da planta';
+    body.innerHTML = panelEdit();
+    bindEdit();
+  }
+}
+
+function panelAreaView(a){
+  const ws=U.week, days=[...Array(7)].map((_,i)=>addDays(ws,i)), todayIso=iso(new Date(Date.UTC(new Date().getFullYear(),new Date().getMonth(),new Date().getDate())));
+  const acts=weekActivities(a.id).sort((x,y)=>x.start.localeCompare(y.start));
+  const rows = acts.map(t=>{
+    const s=Math.max(0,Math.round((parseISO(t.start)-ws)/864e5)), e=Math.min(6,Math.round((parseISO(t.end||t.start)-ws)/864e5));
+    return `<div class="bar-row" data-act="${t.id}"><div class="bar" style="grid-column:${s+1}/${e+2};background:${STATUS[t.status]?.color||'#999'}" title="${esc(t.title)} — ${esc(t.resp||'')}">${esc(t.title)}</div></div>`;
+  }).join('');
+  const photos=S.photos.filter(p=>p.scope===a.id);
+  const sel = S.activities.find(t=>t.id===U.selAct);
+  return `
+    ${a.desc?`<p class="muted" style="margin-top:0;white-space:pre-wrap">${esc(a.desc)}</p>`:''}
+    <h3>Programação semanal</h3>
+    <div class="week-nav">
+      <button id="wkPrev">◀</button><strong>${weekLabel(days[0])}</strong><button id="wkNext">▶</button><button id="wkToday">Hoje</button>
+    </div>
+    <div class="gantt">
+      ${days.map((d,i)=>`<div class="dh ${iso(d)===todayIso?'today':''}">${DOW[i]}<br>${fmtDM(d)}</div>`).join('')}
+      ${rows || '<div class="none">Sem atividades nesta semana</div>'}
+    </div>
+    <div class="row" style="margin-top:8px"><button class="primary" id="actNew">+ Nova atividade</button></div>
+    ${actForm(sel, a)}
+    ${acts.length?`<h3>Lista da semana</h3><div class="list">${acts.map(t=>`<div class="item ${t.id===U.selAct?'sel':''}" data-act="${t.id}">
+        <span class="st" style="background:${STATUS[t.status]?.color}">${STATUS[t.status]?.label}</span>
+        <span style="flex:1">${esc(t.title)}<br><span class="muted" style="font-size:12px">${fmtDM(parseISO(t.start))}${t.end&&t.end!==t.start?' → '+fmtDM(parseISO(t.end)):''}${t.resp?' · '+esc(t.resp):''}</span></span></div>`).join('')}</div>`:''}
+    <h3>Fotos da área (${photos.length})</h3>
+    ${photos.length?`<div class="list">${photos.map(p=>`<div class="item" data-photo="${p.id}">📷 <span style="flex:1">${esc(p.title||'(sem título)')}</span>${p.img?'':'<span class="muted">sem foto</span>'}</div>`).join('')}</div>`:'<p class="muted">Nenhum ponto de foto nesta área. Adicione no modo Underground.</p>'}
+  `;
+}
+
+function actForm(t, a){
+  if(U.selAct===undefined || U.selAct===null) return '';
+  const isNew = U.selAct==='new';
+  if(!isNew && !t) return '';
+  const d = isNew ? {title:'',resp:'',start:iso(U.week),end:iso(U.week),status:'programada',obs:''} : t;
+  return `<div class="card" id="actForm">
+    <strong>${isNew?'Nova atividade':'Editar atividade'}</strong>
+    <label>Atividade</label><input id="fTitle" value="${esc(d.title)}" placeholder="Ex.: Montagem de tubulação">
+    <label>Responsável / equipe</label><input id="fResp" value="${esc(d.resp)}">
+    <div class="row"><div><label>Início</label><input type="date" id="fStart" value="${d.start}"></div><div><label>Fim</label><input type="date" id="fEnd" value="${d.end||d.start}"></div></div>
+    <label>Status</label><select id="fStatus">${Object.entries(STATUS).map(([k,v])=>`<option value="${k}" ${k===d.status?'selected':''}>${v.label}</option>`).join('')}</select>
+    <label>Observações</label><textarea id="fObs">${esc(d.obs)}</textarea>
+    <div class="row" style="margin-top:10px">
+      <button class="primary" id="fSave">Salvar</button>
+      ${isNew?'':'<button class="danger" id="fDel">Excluir</button>'}
+      <button id="fCancel">Cancelar</button>
+    </div></div>`;
+}
+
+function bindAreaView(a){
+  const b=$('#panelBody');
+  $('#wkPrev').onclick=()=>setWeek(addDays(U.week,-7));
+  $('#wkNext').onclick=()=>setWeek(addDays(U.week,7));
+  $('#wkToday').onclick=()=>setWeek(mondayOf(new Date()));
+  $('#actNew').onclick=()=>{U.selAct='new'; renderPanel(); $('#fTitle').focus();};
+  b.querySelectorAll('[data-act]').forEach(n=>n.onclick=()=>{U.selAct=n.dataset.act; renderPanel();});
+  b.querySelectorAll('[data-photo]').forEach(n=>n.onclick=()=>showPhoto(n.dataset.photo));
+  const f=$('#actForm'); if(!f) return;
+  $('#fCancel').onclick=()=>{U.selAct=null; renderPanel();};
+  $('#fSave').onclick=()=>{
+    const v={title:$('#fTitle').value.trim(), resp:$('#fResp').value.trim(), start:$('#fStart').value, end:$('#fEnd').value||$('#fStart').value, status:$('#fStatus').value, obs:$('#fObs').value};
+    if(!v.title||!v.start){ alert('Preencha a atividade e a data de início.'); return; }
+    if(v.end<v.start) v.end=v.start;
+    if(U.selAct==='new') S.activities.push({id:uid(), areaId:a.id, ...v});
+    else Object.assign(S.activities.find(t=>t.id===U.selAct), v);
+    U.selAct=null; save(); renderAreas(); renderPanel(); renderWeekBar();
+  };
+  const del=$('#fDel'); if(del) del.onclick=()=>{ if(!confirm('Excluir esta atividade?')) return; S.activities=S.activities.filter(t=>t.id!==U.selAct); U.selAct=null; save(); renderAreas(); renderPanel(); renderWeekBar(); };
+}
+
+function panelEdit(){
+  const a=areaById(U.selArea), p=S.photos.find(x=>x.id===U.selPhoto);
+  const scopeName = s => s==='geral' ? 'Planta geral' : (areaById(s)?.name || '?');
+  let html='';
+  if(a){
+    html+=`<div class="card"><strong>Área selecionada</strong>
+      <label>Nome</label><input id="eName" value="${esc(a.name)}">
+      <label>Descrição</label><textarea id="eDesc">${esc(a.desc)}</textarea>
+      <label>Cor</label><div class="row" style="flex-wrap:wrap;gap:6px">${PALETTE.map(c=>`<button class="${a.color===c?'on':''}" data-color="${c}" style="flex:0 0 auto;padding:4px"><span class="swatch" style="background:${c}"></span></button>`).join('')}<input type="color" id="eColor" value="${a.color}" style="flex:0 0 44px;padding:2px;height:30px"></div>
+      <p class="muted" style="font-size:12px">${a.points.length} vértices</p>
+      <div class="row">
+        <button id="eFocus">${U.focus===a.id?'Voltar à planta geral':'Expandir área (fotos internas)'}</button>
+        <button class="danger" id="eDel" style="flex:0 0 auto">Excluir</button>
+      </div></div>`;
+  }
+  if(p){
+    html+=`<div class="card"><strong>Ponto de foto</strong> <span class="muted">· ${esc(scopeName(p.scope))}</span>
+      <label>Título</label><input id="pTitle" value="${esc(p.title)}" placeholder="Ex.: Vista do pipe rack">
+      ${p.img?`<img class="thumb" src="${p.img}" alt="">`:'<p class="muted">Nenhuma foto anexada.</p>'}
+      <div class="row" style="margin-top:8px"><button class="primary" id="pUpload">${p.img?'Trocar foto':'Anexar foto'}</button><button class="danger" id="pDel" style="flex:0 0 auto">Excluir</button></div>
+    </div>`;
+  }
+  if(!a && !p) html+=`<p class="muted" style="margin-top:0">Selecione uma área ou ponto na planta, ou use as ferramentas no topo.</p>`;
+
+  html+=`<h3>Áreas (${S.areas.length})</h3><div class="list">${S.areas.map(x=>`<div class="item ${x.id===U.selArea?'sel':''}" data-area="${x.id}"><span class="swatch" style="background:${x.color}"></span><span style="flex:1">${esc(x.name)}</span><span class="muted">${S.photos.filter(f=>f.scope===x.id).length} 📷</span></div>`).join('')}</div>`;
+  const scope=U.focus||'geral';
+  const pts=S.photos.filter(x=>x.scope===scope);
+  html+=`<h3>Pontos de foto · ${esc(scopeName(scope))} (${pts.length})</h3>`;
+  html+= pts.length?`<div class="list">${pts.map(x=>`<div class="item ${x.id===U.selPhoto?'sel':''}" data-ph="${x.id}">📷 <span style="flex:1">${esc(x.title||'(sem título)')}</span>${x.img?'':'<span class="muted">sem foto</span>'}</div>`).join('')}</div>`
+             : `<p class="muted">Use a ferramenta <b>Ponto de foto</b> e clique na planta.</p>`;
+  html+=`<h3>Planta</h3><p class="muted" style="font-size:12px">Imagem: ${S.plan.w} × ${S.plan.h} px. Ao trocar a imagem, áreas e pontos são reescalados proporcionalmente.</p>
+    <button class="danger" id="eReset">Restaurar áreas iniciais</button>`;
+  return html;
+}
+
+function bindEdit(){
+  const b=$('#panelBody'), a=areaById(U.selArea), p=S.photos.find(x=>x.id===U.selPhoto);
+  b.querySelectorAll('[data-area]').forEach(n=>n.onclick=()=>{ U.selArea=n.dataset.area; U.selPhoto=null; setTool('select'); const x=areaById(U.selArea); if(!U.focus) fitTo(bbox(x.points),0.6); });
+  b.querySelectorAll('[data-ph]').forEach(n=>n.onclick=()=>{ U.selPhoto=n.dataset.ph; U.selArea=null; render(); });
+  if(a){
+    trackTyping($('#eName'), e=>{ a.name=e.target.value; save(); renderAreas(); b.querySelector(`[data-area="${a.id}"] span:nth-child(2)`).textContent=a.name; });
+    trackTyping($('#eDesc'), e=>{ a.desc=e.target.value; save(); });
+    b.querySelectorAll('[data-color]').forEach(n=>n.onclick=()=>{ if(a.color===n.dataset.color) return; checkpoint(); a.color=n.dataset.color; save(); render(); });
+    $('#eColor').onchange=e=>{ checkpoint(); a.color=e.target.value; save(); render(); };
+    $('#eDel').onclick=()=>{ if(!confirm(`Excluir a área "${a.name}"? As atividades e fotos internas dela também serão removidas.`)) return;
+      checkpoint(); S.areas=S.areas.filter(x=>x!==a); S.activities=S.activities.filter(t=>t.areaId!==a.id); S.photos=S.photos.filter(f=>f.scope!==a.id);
+      if(U.focus===a.id) U.focus=null; U.selArea=null; save(); render(); };
+    $('#eFocus').onclick=()=>{ U.focus = U.focus===a.id ? null : a.id; U.selPhoto=null; render(); fitFocusOrAll(); };
+  }
+  if(p){
+    trackTyping($('#pTitle'), e=>{ p.title=e.target.value; save(); renderHandlesAndPins(); });
+    $('#pUpload').onclick=()=>pickPhotoFor(p.id);
+    $('#pDel').onclick=()=>{ if(!confirm('Excluir este ponto de foto?')) return; checkpoint(); S.photos=S.photos.filter(x=>x!==p); U.selPhoto=null; save(); render(); };
+  }
+  $('#eReset').onclick=()=>{ if(!confirm('Substituir todas as áreas pelas áreas iniciais? Atividades e fotos ligadas às áreas atuais serão perdidas.')) return;
+    checkpoint();
+    const seed=seedState(), sx=S.plan.w/REF_W, sy=S.plan.h/REF_H;
+    seed.areas.forEach(x=>x.points=x.points.map(([px,py])=>[px*sx,py*sy]));
+    const ids=new Set(S.areas.map(x=>x.id)); S.areas=seed.areas; S.activities=[]; S.photos=S.photos.filter(f=>f.scope==='geral'||!ids.has(f.scope));
+    U.focus=U.selArea=null; save(); render(); fitAll(); };
+}
+
+/* ---------------- fotos ---------------- */
+let photoTarget=null;
+function pickPhotoFor(id){ photoTarget=id; $('#filePhoto').value=''; $('#filePhoto').click(); }
+$('#filePhoto').onchange=async e=>{
+  const f=e.target.files[0]; if(!f||!photoTarget) return;
+  const p=S.photos.find(x=>x.id===photoTarget); if(!p) return;
+  const img = await compressImage(f, 2560, .85);
+  // ponto recém-criado: a foto faz parte do mesmo passo da criação
+  if(p.id!==U.justCreatedPhoto) checkpoint();
+  U.justCreatedPhoto=null;
+  p.img = img;
+  if(!p.title) p.title=f.name.replace(/\.[^.]+$/,'');
+  save(); render();
+};
+function compressImage(file, max, q){
+  return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>{ const im=new Image(); im.onload=()=>{
+    const k=Math.min(1, max/Math.max(im.width,im.height)), c=document.createElement('canvas'); c.width=Math.round(im.width*k); c.height=Math.round(im.height*k);
+    c.getContext('2d').drawImage(im,0,0,c.width,c.height); res(c.toDataURL('image/jpeg',q)); }; im.onerror=rej; im.src=r.result; }; r.onerror=rej; r.readAsDataURL(file); });
+}
+function showPhoto(id){
+  const p=S.photos.find(x=>x.id===id); if(!p) return;
+  if(!p.img){ alert('Este ponto ainda não tem foto. Anexe no modo Underground.'); return; }
+  $('#photoDlgTitle').textContent=p.title||'';
+  $('#photoDlgArea').textContent = p.scope==='geral'?'Planta geral':(areaById(p.scope)?.name||'');
+  $('#photoDlg').showModal();
+  const img=$('#photoDlgImg'); img.onload=pvFit; img.src=p.img; if(img.complete) pvFit();
+}
+
+/* ---------------- zoom nas fotos ----------------
+   Escala 1 = foto inteira ajustada à janela. Roda do mouse aproxima no cursor,
+   arrastar move, duplo clique alterna entre 2,5× e ajustado. */
+const PV={s:1, x:0, y:0, base:1, max:10};
+const pvBox=()=>$('#photoView').getBoundingClientRect();
+function pvApply(){
+  const img=$('#photoDlgImg'), k=PV.base*PV.s;
+  img.style.width=img.naturalWidth*k+'px'; img.style.height=img.naturalHeight*k+'px';
+  img.style.transform=`translate(${PV.x}px,${PV.y}px)`;
+  $('#pzLevel').textContent=Math.round(PV.s*100)+'%';
+  $('#photoView').classList.toggle('zoomed', PV.s>1);
+}
+function pvFit(){
+  const img=$('#photoDlgImg'), b=pvBox(); if(!img.naturalWidth) return;
+  PV.base=Math.min(b.width/img.naturalWidth, b.height/img.naturalHeight); PV.s=1;
+  PV.x=(b.width-img.naturalWidth*PV.base)/2; PV.y=(b.height-img.naturalHeight*PV.base)/2; pvApply();
+}
+// mantém a foto cobrindo a janela (ou centralizada quando menor que ela)
+function pvClamp(){
+  const img=$('#photoDlgImg'), b=pvBox(), w=img.naturalWidth*PV.base*PV.s, h=img.naturalHeight*PV.base*PV.s;
+  PV.x = w<=b.width ? (b.width-w)/2 : Math.min(0, Math.max(b.width-w, PV.x));
+  PV.y = h<=b.height ? (b.height-h)/2 : Math.min(0, Math.max(b.height-h, PV.y));
+}
+function pvZoom(factor, mx, my){
+  const b=pvBox(); if(mx===undefined){ mx=b.width/2; my=b.height/2; }
+  const ns=Math.min(PV.max, Math.max(1, PV.s*factor)), f=ns/PV.s;
+  PV.x=mx-(mx-PV.x)*f; PV.y=my-(my-PV.y)*f; PV.s=ns; pvClamp(); pvApply();
+}
+{
+  const view=$('#photoView'); let pd=null, lastTap=0;
+  view.addEventListener('wheel',e=>{ e.preventDefault(); const b=pvBox(); pvZoom(e.deltaY>0?1/1.2:1.2, e.clientX-b.left, e.clientY-b.top); },{passive:false});
+  view.addEventListener('pointerdown',e=>{
+    if(e.target.closest('#photoZoomBar')) return;
+    try{ view.setPointerCapture(e.pointerId); }catch(err){}
+    pd={sx:e.clientX, sy:e.clientY, x:PV.x, y:PV.y, moved:false};
+  });
+  view.addEventListener('pointermove',e=>{
+    if(!pd) return; const dx=e.clientX-pd.sx, dy=e.clientY-pd.sy;
+    if(!pd.moved && Math.hypot(dx,dy)<4) return;
+    pd.moved=true; view.classList.add('dragging'); PV.x=pd.x+dx; PV.y=pd.y+dy; pvClamp(); pvApply();
+  });
+  view.addEventListener('pointerup',e=>{
+    const d=pd; pd=null; view.classList.remove('dragging'); if(!d || d.moved) return;
+    const now=performance.now();
+    if(now-lastTap<320){ const b=pvBox(); PV.s>1 ? pvFit() : pvZoom(2.5, e.clientX-b.left, e.clientY-b.top); lastTap=0; }
+    else lastTap=now;
+  });
+  $('#pzIn').onclick=()=>pvZoom(1.5);
+  $('#pzOut').onclick=()=>pvZoom(1/1.5);
+  $('#pzFit').onclick=pvFit;
+  $('#photoDlg').addEventListener('keydown',e=>{
+    if(e.key==='+'||e.key==='=') pvZoom(1.5);
+    else if(e.key==='-') pvZoom(1/1.5);
+    else if(e.key==='0') pvFit();
+  });
+  // ao redimensionar: reajusta se estiver no tamanho de tela; com zoom, só mantém dentro dos limites
+  window.addEventListener('resize',()=>{ if(!$('#photoDlg').open) return; if(PV.s===1) pvFit(); else { pvClamp(); pvApply(); } });
+}
+
+/* ---------------- interação no mapa ---------------- */
+let drag=null;   // {type:'pan'|'vtx'|'photo'|'area', ...}
+svg.addEventListener('wheel', e=>{ e.preventDefault(); const [x,y]=toPlan(e); zoomAt(e.deltaY>0?1.15:1/1.15, x, y); }, {passive:false});
+
+svg.addEventListener('pointerdown', e=>{
+  if(e.button!==0 && e.button!==1) return;
+  const t=e.target, kind=t.dataset?.kind, id=t.dataset?.id, [x,y]=toPlan(e);
+  svg.setPointerCapture(e.pointerId);
+  const base={sx:e.clientX, sy:e.clientY, px:x, py:y, kind, id, i:+t.dataset?.i, moved:false};
+  const edit = U.mode==='under' && e.button===0;
+  if(edit && U.tool==='select' && kind==='vtx'){ drag={...base,type:'vtx'}; }
+  else if(edit && U.tool==='select' && kind==='mid'){
+    checkpoint(); const a=areaById(id); a.points.splice(base.i+1,0,[x,y]); drag={...base,type:'vtx',i:base.i+1,cp:true}; renderAreas(); renderHandlesAndPins();
+  }
+  else if(edit && (U.tool==='select'||U.tool==='photo') && kind==='photo'){ drag={...base,type:'photo'}; U.selPhoto=id; U.selArea=null; }
+  else if(edit && U.tool==='select' && kind==='area' && id===U.selArea){ drag={...base,type:'area',orig:areaById(id).points.map(p=>[...p])}; }
+  else { drag={...base,type:'pan',vb:{...U.vb}}; }
+});
+
+svg.addEventListener('pointermove', e=>{
+  if(U.mode==='under' && U.tool==='draw' && U.draft){ U.draftHover=toPlan(e); if(!drag) renderHandlesAndPins(); }
+  if(!drag) return;
+  if(!drag.moved && Math.hypot(e.clientX-drag.sx, e.clientY-drag.sy) < 4) return;
+  drag.moved=true;
+  if(drag.type!=='pan' && !drag.cp){ checkpoint(); drag.cp=true; }
+  if(drag.type==='pan'){
+    animId++; svg.classList.add('panning');
+    const upp=unitsPerPx();
+    U.vb={...drag.vb, x:drag.vb.x-(e.clientX-drag.sx)*upp, y:drag.vb.y-(e.clientY-drag.sy)*upp}; applyVB();
+    return;
+  }
+  const [x,y]=toPlan(e);
+  if(drag.type==='vtx'){ areaById(drag.id).points[drag.i]=[x,y]; renderAreas(); renderHandlesAndPins(); }
+  else if(drag.type==='photo'){ const p=S.photos.find(f=>f.id===drag.id); p.x=x; p.y=y; renderHandlesAndPins(); }
+  else if(drag.type==='area'){ const dx=x-drag.px, dy=y-drag.py; areaById(drag.id).points=drag.orig.map(([a,b])=>[a+dx,b+dy]); renderAreas(); renderHandlesAndPins(); }
+});
+
+svg.addEventListener('pointerup', e=>{
+  const d=drag; drag=null; svg.classList.remove('panning');
+  if(!d) return;
+  if(d.moved){ if(d.type!=='pan'){ save(); renderPanel(); } return; }
+  if(d.cp){ save(); render(); return; }  // vértice criado no meio da aresta, sem arrastar
+  onClick(d, e);
+});
+
+let lastClick={t:0,x:0,y:0};
+function onClick(d, e){
+  const now=performance.now(), dbl = now-lastClick.t<320 && Math.hypot(e.clientX-lastClick.x,e.clientY-lastClick.y)<6;
+  lastClick={t:now,x:e.clientX,y:e.clientY};
+  const {kind,id,px,py}=d;
+
+  if(U.mode==='above'){
+    if(kind==='photo') return showPhoto(id);
+    if(kind==='area' && U.focus!==id){ U.focus=id; U.selAct=null; render(); openPanel(); fitFocusOrAll(); }
+    return;
+  }
+  // Underground
+  if(U.tool==='draw'){
+    if(!U.draft) U.draft=[];
+    if(dbl){ U.draft.pop(); return finishDraft(); }
+    if(U.draft.length>=3){ const [fx,fy]=U.draft[0]; if(Math.hypot(px-fx,py-fy) < 10*unitsPerPx()) return finishDraft(); }
+    U.draft.push([px,py]); renderHandlesAndPins(); return;
+  }
+  if(U.tool==='photo'){
+    if(kind==='photo'){ U.selPhoto=id; U.selArea=null; render(); return; }
+    const p={id:uid(), scope:U.focus||'geral', x:px, y:py, title:'', img:null};
+    checkpoint(); U.justCreatedPhoto=p.id; S.photos.push(p); U.selPhoto=p.id; U.selArea=null; save(); render(); openPanel();
+    pickPhotoFor(p.id); return;
+  }
+  // select
+  if(kind==='vtx' && dbl){ const a=areaById(id); if(a.points.length>3){ checkpoint(); a.points.splice(d.i,1); save(); render(); } return; }
+  if(kind==='area'){ U.selArea=id; U.selPhoto=null; render(); return; }
+  if(kind==='photo'){ U.selPhoto=id; U.selArea=null; render(); return; }
+  if(!kind){ U.selArea=null; U.selPhoto=null; render(); }
+}
+
+function finishDraft(){
+  const pts=U.draft; U.draft=null; U.draftHover=null;
+  if(!pts || pts.length<3){ renderHandlesAndPins(); return; }
+  const a={id:uid(), name:`NOVA ÁREA ${S.areas.length+1}`, desc:'', color:PALETTE[S.areas.length%PALETTE.length], points:pts};
+  checkpoint(); S.areas.push(a); U.selArea=a.id; save(); setTool('select');
+  setTimeout(()=>{ const n=$('#eName'); n&&(n.focus(), n.select()); },0);
+}
+
+/* ---------------- modos / ferramentas ---------------- */
+function setMode(m){
+  U.mode=m; U.draft=null; U.selAct=null;
+  document.querySelectorAll('#modeSeg button').forEach(b=>b.classList.toggle('on', b.dataset.mode===m));
+  $('#editTools').classList.toggle('hidden', m!=='under');
+  $('#viewTools').classList.toggle('hidden', m!=='above');
+  if(m==='under') openPanel(); else if(!U.focus) closePanel();
+  render();
+}
+function setTool(t){
+  U.tool=t; if(t!=='draw'){ U.draft=null; U.draftHover=null; }
+  document.querySelectorAll('#toolSeg button').forEach(b=>b.classList.toggle('on', b.dataset.tool===t));
+  render();
+}
+document.querySelectorAll('#modeSeg button').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
+document.querySelectorAll('#toolSeg button').forEach(b=>b.onclick=()=>setTool(b.dataset.tool));
+$('#hwPrev').onclick=()=>setWeek(addDays(U.week,-7));
+$('#hwNext').onclick=()=>setWeek(addDays(U.week,7));
+$('#hwToday').onclick=()=>setWeek(mondayOf(new Date()));
+U.showPhotos = (()=>{ try{ return localStorage.getItem('planta.showPhotos')!=='0'; }catch(e){ return true; } })();
+function renderPhotoBtn(){
+  const b=$('#btnPhotos'); b.classList.toggle('on', U.showPhotos);
+  b.textContent = `📷 ${U.showPhotos?'Ocultar':'Exibir'} fotos (${S.photos.length})`;
+}
+$('#btnPhotos').onclick=()=>{
+  U.showPhotos=!U.showPhotos;
+  try{ localStorage.setItem('planta.showPhotos', U.showPhotos?'1':'0'); }catch(err){}
+  renderHandlesAndPins(); renderPhotoBtn();
+};
+$('#onlyScheduled').onchange=e=>{
+  U.onlyScheduled=e.target.checked;
+  try{ localStorage.setItem('planta.onlyScheduled', U.onlyScheduled?'1':'0'); }catch(err){}
+  renderAreas(); renderWeekBar();
+};
+$('#btnUndo').onclick=undo;
+$('#btnRedo').onclick=redo;
+$('#btnBack').onclick=()=>{ U.focus=null; U.selAct=null; if(U.mode==='above') closePanel(); render(); fitAll(); };
+$('#btnClosePanel').onclick=()=>{ if(U.mode==='above' && U.focus){ $('#btnBack').click(); } else closePanel(); };
+$('#zIn').onclick=()=>zoomAt(1/1.4, U.vb.x+U.vb.w/2, U.vb.y+U.vb.h/2);
+$('#zOut').onclick=()=>zoomAt(1.4, U.vb.x+U.vb.w/2, U.vb.y+U.vb.h/2);
+$('#zFit').onclick=()=>fitFocusOrAll();
+
+document.addEventListener('keydown', e=>{
+  if(e.target.matches?.('input,textarea,select')) return;
+  if(e.key==='Escape'){
+    if(U.draft){ U.draft=null; U.draftHover=null; renderHandlesAndPins(); }
+    else if(U.focus) $('#btnBack').click();
+    else if(U.mode==='under'){ U.selArea=U.selPhoto=null; render(); }
+  }
+  if(e.key==='Enter' && U.draft) finishDraft();
+  if(U.mode==='under'){
+    if(e.key==='v'||e.key==='V') setTool('select');
+    if(e.key==='n'||e.key==='N') setTool('draw');
+    if(e.key==='f'||e.key==='F') setTool('photo');
+    if(e.key==='Delete' && U.selPhoto){ $('#pDel')?.click(); }
+    const k=e.key.toLowerCase();
+    if((e.ctrlKey||e.metaKey) && k==='z' && !e.shiftKey){ e.preventDefault(); undo(); }
+    if((e.ctrlKey||e.metaKey) && (k==='y' || (k==='z' && e.shiftKey))){ e.preventDefault(); redo(); }
+  }
+});
+new ResizeObserver(()=>renderHandlesAndPins()).observe(svg);
+
+/* ---------------- planta / importação / exportação ---------------- */
+$('#btnLoadPlan').onclick=()=>{ $('#filePlan').value=''; $('#filePlan').click(); };
+$('#filePlan').onchange=e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const r=new FileReader(); r.onload=()=>{ const im=new Image(); im.onload=()=>{
+    const sx=im.width/S.plan.w, sy=im.height/S.plan.h;
+    if(Math.abs(sx-1)>1e-3 || Math.abs(sy-1)>1e-3){
+      S.areas.forEach(a=>a.points=a.points.map(([x,y])=>[x*sx,y*sy]));
+      S.photos.forEach(p=>{p.x*=sx; p.y*=sy;});
+    }
+    S.plan={src:r.result, w:im.width, h:im.height}; save(); render(); fitAll(false);
+    clearHistory();  // instantâneos antigos estão em outra escala
+  }; im.src=r.result; }; r.readAsDataURL(f);
+};
+$('#btnExport').onclick=()=>{
+  const blob=new Blob([JSON.stringify(S)],{type:'application/json'}), a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download=`planta-programacao-${iso(new Date())}.json`; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+};
+$('#btnImport').onclick=()=>{ $('#fileImport').value=''; $('#fileImport').click(); };
+$('#fileImport').onchange=e=>{
+  const f=e.target.files[0]; if(!f) return;
+  f.text().then(t=>{ const d=JSON.parse(t); if(!d.areas||!d.plan) throw new Error('Arquivo inválido');
+    S={photos:[],activities:[],...d}; U.focus=U.selArea=U.selPhoto=null; clearHistory(); save(); render(); fitAll(false); })
+   .catch(err=>alert('Não foi possível importar: '+err.message));
+};
+
+/* ---------------- API para integração com o sistema principal ---------------- */
+window.Planta = {
+  getData: ()=>JSON.parse(JSON.stringify(S)),
+  setData: d=>{ S=d; clearHistory(); save(); render(); fitAll(false); },
+  focusArea: id=>{ U.focus=id; render(); openPanel(); fitFocusOrAll(); },
+  setWeek: ini=>{ if(S) setWeek(mondayOfISO(ini)); },  // ini = 'AAAA-MM-DD' (qualquer dia da semana)
+  onChange: null,  // atribua uma função para ser avisado a cada salvamento
+};
+const _set=DB.set.bind(DB); DB.set=async(k,v)=>{ await _set(k,v); window.Planta.onChange?.(JSON.parse(JSON.stringify(v))); };
+
+// dentro da Central (aba 4): a semana escolhida lá também muda a semana daqui
+let semCentral=null;
+window.addEventListener('message',e=>{
+  if(e.source!==window.parent||!e.data||e.data.tipo!=='semana') return;
+  semCentral=e.data.ini; if(S) window.Planta.setWeek(semCentral);
+});
+
+/* ---------------- inicialização ---------------- */
+(async()=>{
+  await DB.open();
+  S = (await DB.get('state')) || seedState();
+  if(semCentral) U.week=mondayOfISO(semCentral);
+  render(); requestAnimationFrame(()=>fitAll(false));
+})();
+</script>
+</body>
+</html>

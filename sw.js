@@ -1,10 +1,11 @@
-/* Central de controle CIVIL – service worker (gerado por ATUALIZAR APP; versão 2026-10-24-142503)
+/* Central de controle CIVIL – service worker (gerado por ATUALIZAR APP; versão 2026-10-25-205328)
    Guarda o sistema e as bibliotecas no aparelho: o app abre sem internet.
    Os dados da obra NÃO passam por aqui – ficam no navegador do aparelho (localStorage + IndexedDB). */
-const CACHE = 'controle-civil-2026-10-24-142503';
+const CACHE = 'controle-civil-2026-10-25-205328';
 // opcionais: se faltar algum no site, o app instala mesmo assim
 const ICONES = ['./icon-192.png', './icon-512.png', './apple-touch-icon.png',
-  './apontamento.html', './apontamento.webmanifest', './icon-ap-192.png', './icon-ap-512.png', './apple-touch-icon-ap.png'];
+  './apontamento.html', './apontamento.webmanifest', './icon-ap-192.png', './icon-ap-512.png', './apple-touch-icon-ap.png', './mapa.html'];
+// planta.jpg (~1,5 MB) não é baixada na instalação: fica guardada na 1ª vez que o mapa abre
 const ARQUIVOS = [
   './', './index.html', './manifest.webmanifest',
   'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
@@ -25,14 +26,18 @@ self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   // páginas (sistema e apontamento): busca a versão publicada quando há internet (e guarda); sem internet usa a guardada
   if (e.request.mode === 'navigate') {
-    const pag = /apontamento\.html$/.test(new URL(e.request.url).pathname) ? './apontamento.html' : './index.html';
+    const nome = new URL(e.request.url).pathname.split('/').pop();
+    const pag = './' + (/\.html$/.test(nome) ? nome : 'index.html');  // index, apontamento ou mapa (aba 4)
     e.respondWith(fetch(e.request.url, { cache: 'no-cache', credentials: 'same-origin' })
       .then(r => { if (r.ok) { const c = r.clone(); caches.open(CACHE).then(k => k.put(pag, c)); } return r; })
-      .catch(() => caches.match(pag)));
+      .catch(() => caches.match(pag).then(r => r || caches.match('./index.html'))));
     return;
   }
-  // bibliotecas, ícones e manifest: do aparelho primeiro
+  // bibliotecas, ícones, manifest e planta.jpg: do aparelho primeiro (o que vier da internet fica guardado)
   e.respondWith(
-    caches.match(e.request, { ignoreSearch: true }).then(r => r || fetch(e.request))
+    caches.match(e.request, { ignoreSearch: true }).then(r => r || fetch(e.request).then(res => {
+      if (res.ok && new URL(e.request.url).origin === location.origin) { const c = res.clone(); caches.open(CACHE).then(k => k.put(e.request, c)); }
+      return res;
+    }))
   );
 });
