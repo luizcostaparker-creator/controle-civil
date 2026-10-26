@@ -92,7 +92,16 @@ dialog::backdrop{background:#000b}
 #photoView img{position:absolute;left:0;top:0;transform-origin:0 0;max-width:none;-webkit-user-drag:none;pointer-events:none}
 #photoZoomBar{position:absolute;right:10px;top:10px;display:flex;gap:4px;align-items:center;background:#171e24e6;border:1px solid var(--line);border-radius:8px;padding:4px}
 #photoZoomBar span{min-width:48px;text-align:center;font-size:12px;color:var(--muted)}
-#photoDlg .cap{padding:10px 14px;display:flex;gap:10px;align-items:center}
+#photoDlg .cap,#panoDlg .cap{padding:10px 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+/* fotos 360° */
+#panoView{position:relative;width:88vw;height:78vh;background:#05080b;touch-action:none;user-select:none;cursor:grab}
+#panoView.dragging{cursor:grabbing}
+#panoView:fullscreen{width:100vw;height:100vh}
+#panoCanvas{display:block;width:100%;height:100%}
+#panoBar{position:absolute;right:10px;top:10px;display:flex;gap:4px;align-items:center;background:#171e24e6;border:1px solid var(--line);border-radius:8px;padding:4px}
+#panoBar span{min-width:48px;text-align:center;font-size:12px;color:var(--muted)}
+#panoHint{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);background:#171e24d9;border:1px solid var(--line);border-radius:8px;padding:5px 10px;font-size:12px;color:var(--muted);pointer-events:none;transition:opacity .4s;white-space:nowrap;max-width:92%;overflow:hidden;text-overflow:ellipsis}
+#panoView.moved #panoHint{opacity:0}
 .thumb{width:100%;max-height:200px;object-fit:cover;border-radius:6px;border:1px solid var(--line);margin-top:6px}
 .kbd{font-family:ui-monospace,Consolas,monospace;font-size:11px;border:1px solid var(--line);border-radius:4px;padding:0 4px}
 /* celular / tela estreita: painel da área embaixo da planta */
@@ -135,6 +144,7 @@ dialog::backdrop{background:#000b}
         <button data-tool="select" class="on" title="Selecionar, mover vértices (V)">Selecionar</button>
         <button data-tool="draw" title="Desenhar nova área (N)">Nova área</button>
         <button data-tool="photo" title="Adicionar ponto de foto (F)">Ponto de foto</button>
+        <button data-tool="photo360" title="Adicionar ponto de foto 360° (G)">Foto 360°</button>
       </div>
       <button id="btnUndo" title="Desfazer (Ctrl+Z)" disabled>↶ Desfazer</button>
       <button id="btnRedo" title="Refazer (Ctrl+Y)" disabled>↷ Refazer</button>
@@ -203,6 +213,23 @@ dialog::backdrop{background:#000b}
   <div class="cap"><strong id="photoDlgTitle" style="flex:1"></strong><span class="muted" id="photoDlgArea"></span><button onclick="photoDlg.close()">Fechar</button></div>
 </dialog>
 
+<dialog id="panoDlg">
+  <div id="panoView">
+    <canvas id="panoCanvas"></canvas>
+    <div id="panoBar">
+      <button id="panoOut" title="Afastar (−)">－</button>
+      <span id="panoLevel"></span>
+      <button id="panoIn" title="Aproximar (+)">＋</button>
+      <button id="panoReset" title="Voltar à vista inicial (0)">⟲</button>
+      <button id="panoFull" title="Tela cheia">⛶</button>
+    </div>
+    <div id="panoHint">🌐 Arraste para olhar em volta · roda do mouse ou pinça = zoom</div>
+  </div>
+  <div class="cap"><strong id="panoTitle" style="flex:1"></strong><span class="muted" id="panoArea"></span>
+    <button id="panoSaveView" title="A foto passa a abrir olhando para a direção atual">📌 Usar esta vista ao abrir</button>
+    <button onclick="panoDlg.close()">Fechar</button></div>
+</dialog>
+
 <script>
 /* ============================================================
    Planta de Programação — modo Aboveground (uso) / Underground (edição)
@@ -244,7 +271,7 @@ function seedState(){
       a('ÁREA 16', R(766,575,890,642)),
       a('ÁREA 16', R(900,575,1140,642)),
     ],
-    photos: [],      // {id, scope:'geral'|areaId, x, y, title, img}
+    photos: [],      // {id, scope:'geral'|areaId, x, y, title, img, type:'360'?, yaw?, pitch?}
     activities: [],  // {id, areaId, title, resp, start, end, status, obs}
   };
 }
@@ -446,10 +473,14 @@ function renderHandlesAndPins(){
     const g=el('g',{class:'photo-pin','data-kind':'photo','data-id':ph.id, transform:`translate(${ph.x},${ph.y})`},P);
     const r=9*upp, sel=U.selPhoto===ph.id && U.mode==='under';
     el('circle',{r:r*1.9,fill:'#000',  'fill-opacity':.35,'data-kind':'photo','data-id':ph.id},g);
-    el('circle',{r:r,fill:ph.img?'#ff5c8a':'#888',stroke:sel?'#fff':'#000','stroke-width':sel?3:1.5,'data-kind':'photo','data-id':ph.id},g);
-    // ícone câmera simples
-    el('rect',{x:-r*.55,y:-r*.35,width:r*1.1,height:r*.75,rx:r*.12,fill:'#fff','pointer-events':'none'},g);
-    el('circle',{r:r*.22,fill:ph.img?'#ff5c8a':'#888',cy:r*.02,'pointer-events':'none'},g);
+    const is360=ph.type==='360', cor=ph.img?(is360?'#9b6bff':'#ff5c8a'):'#888';
+    el('circle',{r:r,fill:cor,stroke:sel?'#fff':'#000','stroke-width':sel?3:1.5,'data-kind':'photo','data-id':ph.id},g);
+    if(is360){ const t=el('text',{y:r*.05,'font-size':r*.78,'font-weight':800,fill:'#fff','text-anchor':'middle','dominant-baseline':'middle','pointer-events':'none'},g); t.textContent='360'; }
+    else {
+      // ícone câmera simples
+      el('rect',{x:-r*.55,y:-r*.35,width:r*1.1,height:r*.75,rx:r*.12,fill:'#fff','pointer-events':'none'},g);
+      el('circle',{r:r*.22,fill:cor,cy:r*.02,'pointer-events':'none'},g);
+    }
     if(ph.title){ const t=el('text',{y:-r*2.2,class:'area-label','font-size':12*upp},g); t.textContent=ph.title; }
   }
   // alças de edição
@@ -482,13 +513,14 @@ function renderHint(){
       select:'Clique numa área para editar · arraste os vértices brancos · clique nos pontos azuis para criar vértice · duplo clique no vértice remove · arraste a área selecionada para movê-la',
       draw:'Clique para adicionar vértices · clique no primeiro ponto (verde), duplo clique ou <span class="kbd">Enter</span> para fechar · <span class="kbd">Esc</span> cancela',
       photo:`Clique na planta para criar um ponto de foto ${U.focus?'<b>dentro da área expandida</b>':'<b>na planta geral</b>'} · arraste pontos existentes para mover`,
+      photo360:`Clique na planta para criar um ponto de <b>foto 360°</b> ${U.focus?'<b>dentro da área expandida</b>':'<b>na planta geral</b>'} (imagem panorâmica 2:1) · arraste pontos existentes para mover`,
     }[U.tool];
   }
 }
 
 function render(){
   renderPlan(); renderAreas(); renderHandlesAndPins(); renderHint(); renderPanel(); renderWeekBar(); renderPhotoBtn();
-  svg.classList.toggle('cross', U.mode==='under' && (U.tool==='draw'||U.tool==='photo'));
+  svg.classList.toggle('cross', U.mode==='under' && (U.tool==='draw'||U.tool==='photo'||U.tool==='photo360'));
 }
 
 /* ---------------- painel lateral ---------------- */
@@ -535,7 +567,7 @@ function panelAreaView(a){
         <span class="st" style="background:${STATUS[t.status]?.color}">${STATUS[t.status]?.label}</span>
         <span style="flex:1">${esc(t.title)}<br><span class="muted" style="font-size:12px">${fmtDM(parseISO(t.start))}${t.end&&t.end!==t.start?' → '+fmtDM(parseISO(t.end)):''}${t.resp?' · '+esc(t.resp):''}</span></span></div>`).join('')}</div>`:''}
     <h3>Fotos da área (${photos.length})</h3>
-    ${photos.length?`<div class="list">${photos.map(p=>`<div class="item" data-photo="${p.id}">📷 <span style="flex:1">${esc(p.title||'(sem título)')}</span>${p.img?'':'<span class="muted">sem foto</span>'}</div>`).join('')}</div>`:'<p class="muted">Nenhum ponto de foto nesta área. Adicione no modo Underground.</p>'}
+    ${photos.length?`<div class="list">${photos.map(p=>`<div class="item" data-photo="${p.id}">${p.type==='360'?'🌐':'📷'} <span style="flex:1">${esc(p.title||'(sem título)')}</span>${p.img?'':'<span class="muted">sem foto</span>'}</div>`).join('')}</div>`:'<p class="muted">Nenhum ponto de foto nesta área. Adicione no modo Underground.</p>'}
   `;
 }
 
@@ -597,8 +629,9 @@ function panelEdit(){
   if(p){
     html+=`<div class="card"><strong>Ponto de foto</strong> <span class="muted">· ${esc(scopeName(p.scope))}</span>
       <label>Título</label><input id="pTitle" value="${esc(p.title)}" placeholder="Ex.: Vista do pipe rack">
+      <label>Tipo</label><select id="pType"><option value="">📷 Foto comum</option><option value="360" ${p.type==='360'?'selected':''}>🌐 Foto 360° (panorâmica 2:1)</option></select>
       ${p.img?`<img class="thumb" src="${p.img}" alt="">`:'<p class="muted">Nenhuma foto anexada.</p>'}
-      <div class="row" style="margin-top:8px"><button class="primary" id="pUpload">${p.img?'Trocar foto':'Anexar foto'}</button><button class="danger" id="pDel" style="flex:0 0 auto">Excluir</button></div>
+      <div class="row" style="margin-top:8px"><button class="primary" id="pUpload">${p.img?'Trocar foto':'Anexar foto'}</button>${p.img?'<button id="pView" style="flex:0 0 auto">Abrir</button>':''}<button class="danger" id="pDel" style="flex:0 0 auto">Excluir</button></div>
     </div>`;
   }
   if(!a && !p) html+=`<p class="muted" style="margin-top:0">Selecione uma área ou ponto na planta, ou use as ferramentas no topo.</p>`;
@@ -607,7 +640,7 @@ function panelEdit(){
   const scope=U.focus||'geral';
   const pts=S.photos.filter(x=>x.scope===scope);
   html+=`<h3>Pontos de foto · ${esc(scopeName(scope))} (${pts.length})</h3>`;
-  html+= pts.length?`<div class="list">${pts.map(x=>`<div class="item ${x.id===U.selPhoto?'sel':''}" data-ph="${x.id}">📷 <span style="flex:1">${esc(x.title||'(sem título)')}</span>${x.img?'':'<span class="muted">sem foto</span>'}</div>`).join('')}</div>`
+  html+= pts.length?`<div class="list">${pts.map(x=>`<div class="item ${x.id===U.selPhoto?'sel':''}" data-ph="${x.id}">${x.type==='360'?'🌐':'📷'} <span style="flex:1">${esc(x.title||'(sem título)')}</span>${x.img?'':'<span class="muted">sem foto</span>'}</div>`).join('')}</div>`
              : `<p class="muted">Use a ferramenta <b>Ponto de foto</b> e clique na planta.</p>`;
   html+=`<h3>Planta</h3><p class="muted" style="font-size:12px">Imagem: ${S.plan.w} × ${S.plan.h} px. Ao trocar a imagem, áreas e pontos são reescalados proporcionalmente.</p>
     <button class="danger" id="eReset">Restaurar áreas iniciais</button>`;
@@ -631,6 +664,8 @@ function bindEdit(){
   if(p){
     trackTyping($('#pTitle'), e=>{ p.title=e.target.value; save(); renderHandlesAndPins(); });
     $('#pUpload').onclick=()=>pickPhotoFor(p.id);
+    $('#pType').onchange=e=>{ checkpoint(); if(e.target.value==='360') p.type='360'; else delete p.type; save(); render(); };
+    const pv=$('#pView'); if(pv) pv.onclick=()=>showPhoto(p.id);
     $('#pDel').onclick=()=>{ if(!confirm('Excluir este ponto de foto?')) return; checkpoint(); S.photos=S.photos.filter(x=>x!==p); U.selPhoto=null; save(); render(); };
   }
   $('#eReset').onclick=()=>{ if(!confirm('Substituir todas as áreas pelas áreas iniciais? Atividades e fotos ligadas às áreas atuais serão perdidas.')) return;
@@ -647,7 +682,12 @@ function pickPhotoFor(id){ photoTarget=id; $('#filePhoto').value=''; $('#filePho
 $('#filePhoto').onchange=async e=>{
   const f=e.target.files[0]; if(!f||!photoTarget) return;
   const p=S.photos.find(x=>x.id===photoTarget); if(!p) return;
-  const img = await compressImage(f, 2560, .85);
+  const im = await loadImage(f).catch(()=>null); if(!im){ alert('Não foi possível ler essa imagem.'); return; }
+  const pano = Math.abs(im.width/im.height-2) < 0.06;
+  if(p.type!=='360' && pano && im.width>=3000 && confirm('Esta imagem parece ser uma foto 360° (panorâmica 2:1).\n\nAbrir este ponto como foto 360°, para olhar em volta?')) p.type='360';
+  if(p.type==='360' && !pano) alert(`Atenção: a foto 360° precisa ser panorâmica equirretangular (largura = 2 × altura). Esta tem ${im.width} × ${im.height} e vai aparecer distorcida.`);
+  // 360°: até 6144 px de largura (boa definição sem pesar demais no aparelho); fotos comuns: até 2560 px
+  const img = compressFrom(im, p.type==='360'?6144:2560, .85);
   // ponto recém-criado: a foto faz parte do mesmo passo da criação
   if(p.id!==U.justCreatedPhoto) checkpoint();
   U.justCreatedPhoto=null;
@@ -655,6 +695,13 @@ $('#filePhoto').onchange=async e=>{
   if(!p.title) p.title=f.name.replace(/\.[^.]+$/,'');
   save(); render();
 };
+function loadImage(file){
+  return new Promise((res,rej)=>{ const u=URL.createObjectURL(file), im=new Image(); im.onload=()=>{ URL.revokeObjectURL(u); res(im); }; im.onerror=e=>{ URL.revokeObjectURL(u); rej(e); }; im.src=u; });
+}
+function compressFrom(im, max, q){
+  const k=Math.min(1, max/Math.max(im.width,im.height)), c=document.createElement('canvas'); c.width=Math.round(im.width*k); c.height=Math.round(im.height*k);
+  c.getContext('2d').drawImage(im,0,0,c.width,c.height); return c.toDataURL('image/jpeg',q);
+}
 function compressImage(file, max, q){
   return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>{ const im=new Image(); im.onload=()=>{
     const k=Math.min(1, max/Math.max(im.width,im.height)), c=document.createElement('canvas'); c.width=Math.round(im.width*k); c.height=Math.round(im.height*k);
@@ -663,6 +710,7 @@ function compressImage(file, max, q){
 function showPhoto(id){
   const p=S.photos.find(x=>x.id===id); if(!p) return;
   if(!p.img){ alert('Este ponto ainda não tem foto. Anexe no modo Underground.'); return; }
+  if(p.type==='360') return showPano(p);
   $('#photoDlgTitle').textContent=p.title||'';
   $('#photoDlgArea').textContent = p.scope==='geral'?'Planta geral':(areaById(p.scope)?.name||'');
   $('#photoDlg').showModal();
@@ -728,6 +776,91 @@ function pvZoom(factor, mx, my){
   window.addEventListener('resize',()=>{ if(!$('#photoDlg').open) return; if(PV.s===1) pvFit(); else { pvClamp(); pvApply(); } });
 }
 
+/* ---------------- fotos 360° ----------------
+   Foto panorâmica equirretangular (2:1) projetada numa esfera com WebGL, sem bibliotecas externas.
+   Arrastar = olhar em volta; roda do mouse / pinça / ＋ － = zoom; duplo clique aproxima;
+   setas do teclado giram; 0 volta à vista inicial (gravável por ponto: yaw/pitch em radianos). */
+const PANO={gl:null, u:null, tex:null, p:null, yaw:0, pitch:0, fov:1.4, raf:0};
+const PANO_FOV=[0.45, 1.9];
+function panoInit(){
+  if(PANO.gl) return true;
+  const c=$('#panoCanvas'), gl=c.getContext('webgl')||c.getContext('experimental-webgl');
+  if(!gl){ alert('Este navegador não consegue mostrar fotos 360° (sem WebGL).'); return false; }
+  const vs='attribute vec2 a;void main(){gl_Position=vec4(a,0.0,1.0);}';
+  const fs=`#ifdef GL_FRAGMENT_PRECISION_HIGH
+precision highp float;
+#else
+precision mediump float;
+#endif
+uniform sampler2D t;uniform vec2 res;uniform float yaw,pitch,fov;
+void main(){
+  vec2 p=(gl_FragCoord.xy/res)*2.0-1.0; p.x*=res.x/res.y;
+  vec3 d=normalize(vec3(p,-1.0/tan(fov*0.5)));
+  float cp=cos(pitch),sp=sin(pitch); d=vec3(d.x,d.y*cp-d.z*sp,d.y*sp+d.z*cp);
+  float cy=cos(yaw),sy=sin(yaw); d=vec3(d.x*cy-d.z*sy,d.y,d.x*sy+d.z*cy);
+  gl_FragColor=texture2D(t,vec2(atan(d.x,-d.z)/6.2831853+0.5,0.5-asin(clamp(d.y,-1.0,1.0))/3.1415927));
+}`;
+  const sh=(type,src)=>{ const o=gl.createShader(type); gl.shaderSource(o,src); gl.compileShader(o); return o; };
+  const pr=gl.createProgram(); gl.attachShader(pr,sh(gl.VERTEX_SHADER,vs)); gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,fs)); gl.linkProgram(pr);
+  if(!gl.getProgramParameter(pr,gl.LINK_STATUS)){ alert('Não foi possível preparar o visualizador 360°.'); return false; }
+  gl.useProgram(pr);
+  gl.bindBuffer(gl.ARRAY_BUFFER,gl.createBuffer()); gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);
+  const a=gl.getAttribLocation(pr,'a'); gl.enableVertexAttribArray(a); gl.vertexAttribPointer(a,2,gl.FLOAT,false,0,0);
+  PANO.tex=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D,PANO.tex);
+  [[gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE],[gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE],[gl.TEXTURE_MIN_FILTER,gl.LINEAR],[gl.TEXTURE_MAG_FILTER,gl.LINEAR]].forEach(([k,v])=>gl.texParameteri(gl.TEXTURE_2D,k,v));
+  PANO.u={res:gl.getUniformLocation(pr,'res'), yaw:gl.getUniformLocation(pr,'yaw'), pitch:gl.getUniformLocation(pr,'pitch'), fov:gl.getUniformLocation(pr,'fov')};
+  PANO.gl=gl; return true;
+}
+function panoDraw(){
+  PANO.raf=0; const gl=PANO.gl, c=$('#panoCanvas'); if(!gl||!$('#panoDlg').open) return;
+  const dpr=Math.min(window.devicePixelRatio||1, 2), w=Math.round(c.clientWidth*dpr), h=Math.round(c.clientHeight*dpr);
+  if(c.width!==w||c.height!==h){ c.width=w; c.height=h; }
+  gl.viewport(0,0,w,h); gl.uniform2f(PANO.u.res,w,h); gl.uniform1f(PANO.u.yaw,PANO.yaw); gl.uniform1f(PANO.u.pitch,PANO.pitch); gl.uniform1f(PANO.u.fov,PANO.fov);
+  gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+  $('#panoLevel').textContent=Math.round(PANO_FOV[1]/PANO.fov*100)+'%';
+}
+const panoRedraw=()=>{ if(!PANO.raf) PANO.raf=requestAnimationFrame(panoDraw); };
+function panoLook(dyaw,dpitch){ PANO.yaw+=dyaw; PANO.pitch=Math.max(-1.5,Math.min(1.5,PANO.pitch+dpitch)); panoRedraw(); }
+function panoZoom(f){ PANO.fov=Math.max(PANO_FOV[0],Math.min(PANO_FOV[1],PANO.fov*f)); panoRedraw(); }
+function panoReset(){ const p=PANO.p; PANO.yaw=p&&p.yaw||0; PANO.pitch=p&&p.pitch||0; PANO.fov=1.4; panoRedraw(); }
+function showPano(p){
+  if(!panoInit()) return;
+  PANO.p=p; $('#panoTitle').textContent=p.title||''; $('#panoArea').textContent=p.scope==='geral'?'Planta geral':(areaById(p.scope)?.name||'');
+  $('#panoView').classList.remove('moved'); $('#panoDlg').showModal(); panoReset();
+  const im=new Image(); im.onload=()=>{
+    if(PANO.p!==p) return;
+    const gl=PANO.gl, max=gl.getParameter(gl.MAX_TEXTURE_SIZE); let src=im;
+    // aparelhos com limite de textura menor (alguns celulares: 4096 px) recebem a foto reduzida
+    if(im.width>max||im.height>max){ const k=max/Math.max(im.width,im.height), c=document.createElement('canvas'); c.width=Math.floor(im.width*k); c.height=Math.floor(im.height*k); c.getContext('2d').drawImage(im,0,0,c.width,c.height); src=c; }
+    gl.bindTexture(gl.TEXTURE_2D,PANO.tex); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGB,gl.RGB,gl.UNSIGNED_BYTE,src); panoRedraw();
+  }; im.src=p.img;
+}
+{
+  const view=$('#panoView'), pts=new Map(); let pinch=0, lastTap=0, moved=false;
+  view.addEventListener('pointerdown',e=>{ if(e.target.closest('#panoBar')) return; try{ view.setPointerCapture(e.pointerId); }catch(err){}
+    pts.set(e.pointerId,{x:e.clientX,y:e.clientY}); moved=false; if(pts.size===2){ const [a,b]=[...pts.values()]; pinch=Math.hypot(a.x-b.x,a.y-b.y); } });
+  view.addEventListener('pointermove',e=>{ const q=pts.get(e.pointerId); if(!q) return;
+    if(pts.size===2){ q.x=e.clientX; q.y=e.clientY; const [a,b]=[...pts.values()], d=Math.hypot(a.x-b.x,a.y-b.y); if(pinch&&d) panoZoom(pinch/d); pinch=d; moved=true; return; }
+    const dx=e.clientX-q.x, dy=e.clientY-q.y; if(!moved && Math.hypot(dx,dy)<3) return;
+    moved=true; view.classList.add('dragging','moved'); q.x=e.clientX; q.y=e.clientY;
+    const k=PANO.fov/Math.max(view.clientHeight,1); panoLook(-dx*k, dy*k); });
+  const up=e=>{ pts.delete(e.pointerId); if(pts.size<2) pinch=0; view.classList.remove('dragging');
+    if(e.type==='pointerup' && !moved && !e.target.closest('#panoBar')){ const now=performance.now(); if(now-lastTap<320){ panoZoom(1/1.6); lastTap=0; } else lastTap=now; } };
+  view.addEventListener('pointerup',up); view.addEventListener('pointercancel',up);
+  view.addEventListener('wheel',e=>{ e.preventDefault(); view.classList.add('moved'); panoZoom(e.deltaY>0?1.12:1/1.12); },{passive:false});
+  $('#panoIn').onclick=()=>panoZoom(1/1.25); $('#panoOut').onclick=()=>panoZoom(1.25); $('#panoReset').onclick=panoReset;
+  $('#panoFull').onclick=()=>{ document.fullscreenElement ? document.exitFullscreen() : view.requestFullscreen?.().catch(()=>{}); };
+  document.addEventListener('fullscreenchange',panoRedraw);
+  $('#panoSaveView').onclick=()=>{ const p=PANO.p; if(!p) return; p.yaw=PANO.yaw; p.pitch=PANO.pitch; save(); alert('Pronto: esta foto 360° passa a abrir olhando para esta direção.'); };
+  $('#panoDlg').addEventListener('keydown',e=>{
+    const k={ArrowLeft:[-.1,0],ArrowRight:[.1,0],ArrowUp:[0,.1],ArrowDown:[0,-.1]}[e.key];
+    if(k){ e.preventDefault(); panoLook(k[0],k[1]); }
+    else if(e.key==='+'||e.key==='=') panoZoom(1/1.25); else if(e.key==='-') panoZoom(1.25); else if(e.key==='0') panoReset();
+  });
+  $('#panoDlg').addEventListener('close',()=>{ PANO.p=null; if(document.fullscreenElement) document.exitFullscreen().catch(()=>{}); });
+  window.addEventListener('resize',()=>{ if($('#panoDlg').open) panoRedraw(); });
+}
+
 /* ---------------- interação no mapa ---------------- */
 let drag=null;   // {type:'pan'|'vtx'|'photo'|'area', ...}
 svg.addEventListener('wheel', e=>{ e.preventDefault(); const [x,y]=toPlan(e); zoomAt(e.deltaY>0?1.15:1/1.15, x, y); }, {passive:false});
@@ -742,7 +875,7 @@ svg.addEventListener('pointerdown', e=>{
   else if(edit && U.tool==='select' && kind==='mid'){
     checkpoint(); const a=areaById(id); a.points.splice(base.i+1,0,[x,y]); drag={...base,type:'vtx',i:base.i+1,cp:true}; renderAreas(); renderHandlesAndPins();
   }
-  else if(edit && (U.tool==='select'||U.tool==='photo') && kind==='photo'){ drag={...base,type:'photo'}; U.selPhoto=id; U.selArea=null; }
+  else if(edit && (U.tool==='select'||U.tool==='photo'||U.tool==='photo360') && kind==='photo'){ drag={...base,type:'photo'}; U.selPhoto=id; U.selArea=null; }
   else if(edit && U.tool==='select' && kind==='area' && id===U.selArea){ drag={...base,type:'area',orig:areaById(id).points.map(p=>[...p])}; }
   else { drag={...base,type:'pan',vb:{...U.vb}}; }
 });
@@ -791,9 +924,10 @@ function onClick(d, e){
     if(U.draft.length>=3){ const [fx,fy]=U.draft[0]; if(Math.hypot(px-fx,py-fy) < 10*unitsPerPx()) return finishDraft(); }
     U.draft.push([px,py]); renderHandlesAndPins(); return;
   }
-  if(U.tool==='photo'){
+  if(U.tool==='photo'||U.tool==='photo360'){
     if(kind==='photo'){ U.selPhoto=id; U.selArea=null; render(); return; }
     const p={id:uid(), scope:U.focus||'geral', x:px, y:py, title:'', img:null};
+    if(U.tool==='photo360') p.type='360';
     checkpoint(); U.justCreatedPhoto=p.id; S.photos.push(p); U.selPhoto=p.id; U.selArea=null; save(); render(); openPanel();
     pickPhotoFor(p.id); return;
   }
@@ -866,6 +1000,7 @@ document.addEventListener('keydown', e=>{
     if(e.key==='v'||e.key==='V') setTool('select');
     if(e.key==='n'||e.key==='N') setTool('draw');
     if(e.key==='f'||e.key==='F') setTool('photo');
+    if(e.key==='g'||e.key==='G') setTool('photo360');
     if(e.key==='Delete' && U.selPhoto){ $('#pDel')?.click(); }
     const k=e.key.toLowerCase();
     if((e.ctrlKey||e.metaKey) && k==='z' && !e.shiftKey){ e.preventDefault(); undo(); }
