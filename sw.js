@@ -1,7 +1,7 @@
-/* Central de controle CIVIL – service worker (gerado por ATUALIZAR APP; versão 2026-10-26-092218)
+/* Central de controle CIVIL – service worker (gerado por ATUALIZAR APP; versão 2026-10-26-095826)
    Guarda o sistema e as bibliotecas no aparelho: o app abre sem internet.
    Os dados da obra NÃO passam por aqui – ficam no navegador do aparelho (localStorage + IndexedDB). */
-const CACHE = 'controle-civil-2026-10-26-092218';
+const CACHE = 'controle-civil-2026-10-26-095826';
 // opcionais: se faltar algum no site, o app instala mesmo assim
 const ICONES = ['./icon-192.png', './icon-512.png', './apple-touch-icon.png',
   './apontamento.html', './apontamento.webmanifest', './icon-ap-192.png', './icon-ap-512.png', './apple-touch-icon-ap.png', './mapa.html'];

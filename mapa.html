@@ -84,6 +84,25 @@ h3{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--mute
 .gantt .bar{margin:4px 2px;border-radius:4px;padding:2px 6px;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#06121c;font-weight:600}
 .gantt .none{grid-column:1/-1;padding:10px;color:var(--muted);font-size:12px;text-align:center;border-top:1px solid var(--line)}
 .st{font-size:11px;padding:1px 6px;border-radius:10px;color:#06121c;font-weight:600;white-space:nowrap}
+/* programação vinda da Central (diferente das atividades lançadas no mapa) */
+.gantt .bar.cen{background:repeating-linear-gradient(45deg,#43b02a 0 7px,#369322 7px 14px);color:#04140a;outline:1px solid #8be86c;outline-offset:-1px}
+.tag-cen{font-size:10px;font-weight:800;letter-spacing:.03em;border-radius:4px;padding:1px 5px;background:#43b02a;color:#04140a;white-space:nowrap}
+.tag-map{font-size:10px;font-weight:800;letter-spacing:.03em;border-radius:4px;padding:1px 5px;background:#ffd36b;color:#1a1300;white-space:nowrap}
+.list .item.cen{border-left:4px solid #43b02a}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:11px;color:var(--muted);margin-top:6px}
+.legend i{display:inline-block;width:18px;height:10px;border-radius:3px;vertical-align:-1px;margin-right:4px}
+.legend i.cen{background:repeating-linear-gradient(45deg,#43b02a 0 4px,#369322 4px 8px)}
+.legend i.map{background:linear-gradient(90deg,#4fb3ff 0 25%,#ffb84d 25% 50%,#7bd88f 50% 75%,#ff6b6b 75%)}
+button.warn{border-color:#8a5a12;color:var(--warn);background:#2a1f0d}
+.tk-list{max-height:180px;overflow:auto;border:1px solid var(--line);border-radius:6px;padding:4px 8px;margin-top:4px;background:#0d1317}
+.tk-list label{display:flex;gap:6px;align-items:center;margin:3px 0;color:var(--text);font-size:12px;cursor:pointer}
+.tk-list input{width:auto;margin:0}
+table.corr{width:100%;border-collapse:collapse;font-size:12px}
+table.corr td{border-top:1px solid var(--line);padding:4px 2px;vertical-align:top}
+table.corr td.n{text-align:right;white-space:nowrap}
+.semarea{color:var(--warn);font-weight:600}
+dl.det{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;margin:8px 0;font-size:12px}
+dl.det dt{color:var(--muted)}dl.det dd{margin:0}
 
 dialog{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:0;max-width:92vw}
 dialog::backdrop{background:#000b}
@@ -138,6 +157,7 @@ dialog::backdrop{background:#000b}
       </label>
       <span class="muted" id="filterInfo" style="font-size:12px"></span>
       <button id="btnPhotos" title="Exibir/ocultar todos os pontos de foto (planta geral e áreas)"></button>
+      <button id="btnSemArea" class="warn hidden" title="Linhas da programação da Central cuja área do take-off não está ligada a nenhuma área do mapa"></button>
     </div>
     <div class="tools hidden" id="editTools">
       <div class="seg" id="toolSeg">
@@ -414,18 +434,54 @@ function weekActivities(areaId){
   return S.activities.filter(t=>t.areaId===areaId && parseISO(t.start)<=we && parseISO(t.end||t.start)>=ws);
 }
 
+/* ---------------- programação da Central (aba 4) ----------------
+   A Central envia as linhas programadas da semana e a lista de áreas do take-off (PROG).
+   Cada área do mapa liga-se a uma ou mais áreas do take-off: automático pelo número
+   ("ÁREA 02" ↔ "ÁREA 02 - TORRE DE RESFRIAMENTO") ou escolhido no Underground (a.tk).
+   As linhas não ficam salvas no mapa: são sempre as da Central. */
+let PROG=null;  // {sem, ini, fim, rows:[...], areasTK:[...]}
+const naCentral = window.parent!==window;
+const normA = s => String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/\s+/g,' ').trim();
+const numA = s => { const m=normA(s).match(/^AREA\s*0*(\d+)/); return m?+m[1]:null; };
+function autoTK(nome, tk){
+  const a=numA(nome), b=numA(tk);
+  if(a!=null||b!=null) return a===b;
+  const x=normA(nome), y=normA(tk); return !!x && (x===y || y.startsWith(x+' '));
+}
+function tkOf(a){ return Array.isArray(a.tk) ? a.tk : (PROG?PROG.areasTK.filter(t=>autoTK(a.name,t)):[]); }
+const progAtiva = () => !!PROG && PROG.ini===iso(U.week);   // linhas valem para a semana que a Central mandou
+function progRows(areaId){ if(!progAtiva()) return []; const a=areaById(areaId); if(!a) return []; const L=new Set(tkOf(a)); return PROG.rows.filter(r=>L.has(r.area)); }
+function semAreaRows(){ if(!progAtiva()) return []; const L=new Set(S.areas.flatMap(tkOf)); return PROG.rows.filter(r=>!L.has(r.area)); }
+function stCen(r){
+  const q=Number(r.qtd)||0, has=r.av!==''&&r.av!=null;
+  if(!has) return {label:'Programada', color:STATUS.programada.color};
+  const av=Number(r.av)||0;
+  if(q&&av>=q-1e-9) return {label:'Concluída', color:STATUS.concluida.color};
+  return av>0 ? {label:'Parcial', color:STATUS.andamento.color} : {label:'Não executada', color:STATUS.impedida.color};
+}
+const nfmt = v => (v===''||v==null||!isFinite(v)) ? '' : Number(v).toLocaleString('pt-BR',{maximumFractionDigits:2});
+function avisaCentral(msg){ if(naCentral) try{ parent.postMessage(msg,'*'); }catch(e){} }
+
 /* ---------------- filtro "apenas áreas programadas" (Aboveground) ---------------- */
 U.onlyScheduled = (()=>{ try{ return localStorage.getItem('planta.onlyScheduled')==='1'; }catch(e){ return false; } })();
 // a área expandida continua visível mesmo sem atividades, para poder programá-la
 function isHiddenByFilter(a){
-  return U.mode==='above' && U.onlyScheduled && U.focus!==a.id && !weekActivities(a.id).length;
+  return U.mode==='above' && U.onlyScheduled && U.focus!==a.id && !weekActivities(a.id).length && !progRows(a.id).length;
 }
-function setWeek(d){ U.week=d; renderAreas(); renderPanel(); renderWeekBar(); }
+function setWeek(d, daCentral){
+  U.week=d; renderAreas(); renderPanel(); renderWeekBar();
+  // semana trocada aqui no mapa: a Central acompanha (e manda a programação dessa semana)
+  if(!daCentral) avisaCentral({tipo:'semanaMapa', ini:iso(d)});
+}
 function renderWeekBar(){
   const ws=U.week, we=addDays(ws,6);
   $('#hwLabel').textContent=weekLabel(ws);
   $('#onlyScheduled').checked=U.onlyScheduled;
-  const n=S.areas.filter(a=>weekActivities(a.id).length).length;
+  const n=S.areas.filter(a=>weekActivities(a.id).length||progRows(a.id).length).length;
+  const sa=semAreaRows().length, b=$('#btnSemArea');
+  b.classList.toggle('hidden', !sa); b.classList.toggle('on', !!U.semArea);
+  b.textContent=`⚠ ${sa} linha(s) sem área no mapa`;
+  avisaCentral({tipo:'resumoMapa', semArea:sa, sem:PROG&&PROG.sem});
   $('#filterInfo').textContent = U.onlyScheduled
     ? (n ? `${n} de ${S.areas.length} áreas com programação` : 'Nenhuma área programada nesta semana')
     : `${n} área(s) com programação`;
@@ -446,7 +502,12 @@ function renderAreas(){
       const [cx,cy]=centroid(a.points); const b=bbox(a.points);
       const size = Math.min(fs, b.h*0.32, b.w/Math.max(a.name.length,4)*1.7);
       const t=el('text',{x:cx,y:cy,class:'area-label','font-size':size},L); t.textContent=a.name;
-      if(U.mode==='above'){ const n=weekActivities(a.id).length; if(n){ const t2=el('text',{x:cx,y:cy+size*1.05,class:'area-label','font-size':size*.7,fill:'#ffd36b'},L); t2.textContent=`${n} ativ.`; } }
+      if(U.mode==='above'){
+        // programação da Central (verde) e atividades do mapa (amarelo) contadas separadamente
+        let y=cy+size*1.05;
+        const np=progRows(a.id).length; if(np){ const t2=el('text',{x:cx,y,class:'area-label','font-size':size*.7,fill:'#8be86c'},L); t2.textContent=`${np} prog.`; y+=size*.8; }
+        const n=weekActivities(a.id).length; if(n){ const t3=el('text',{x:cx,y,class:'area-label','font-size':size*.7,fill:'#ffd36b'},L); t3.textContent=`${n} ativ.`; }
+      }
     }
   }
   // máscara de foco
@@ -531,6 +592,7 @@ function renderPanel(){
   const body=$('#panelBody');
   if(U.mode==='above'){
     const a=areaById(U.focus);
+    if(!a && U.semArea){ openPanel(); $('#panelTitle').innerHTML='⚠ Programação sem área no mapa'; body.innerHTML=panelSemArea(); bindSemArea(); return; }
     if(!a){ closePanel(); return; }
     $('#panelTitle').innerHTML=`<span class="swatch" style="background:${a.color}"></span> ${esc(a.name)}`;
     body.innerHTML = panelAreaView(a);
@@ -549,6 +611,12 @@ function panelAreaView(a){
     const s=Math.max(0,Math.round((parseISO(t.start)-ws)/864e5)), e=Math.min(6,Math.round((parseISO(t.end||t.start)-ws)/864e5));
     return `<div class="bar-row" data-act="${t.id}"><div class="bar" style="grid-column:${s+1}/${e+2};background:${STATUS[t.status]?.color||'#999'}" title="${esc(t.title)} — ${esc(t.resp||'')}">${esc(t.title)}</div></div>`;
   }).join('');
+  const pr=progRows(a.id).slice().sort((x,y)=>(x.ini||'').localeCompare(y.ini||'')||String(x.tag).localeCompare(String(y.tag)));
+  const dayIdx=(s,def)=>s?Math.max(0,Math.min(6,Math.round((parseISO(s)-ws)/864e5))):def;
+  const prBars=pr.map(r=>{ const s0=dayIdx(r.ini,0), e0=Math.max(s0,dayIdx(r.fim||r.ini,6));
+    return `<div class="bar-row" data-cen="${esc(r.uid)}"><div class="bar cen" style="grid-column:${s0+1}/${e0+2}" title="Programação da Central · ${esc(r.tag)} · ${esc(r.etapa)} · ${nfmt(r.qtd)} ${esc(r.und)}">📋 ${esc(r.tag)} · ${esc(r.etapa)}</div></div>`; }).join('');
+  const tk=tkOf(a);
+  const selCen = pr.find(r=>r.uid===U.selCen);
   const photos=S.photos.filter(p=>p.scope===a.id);
   const sel = S.activities.find(t=>t.id===U.selAct);
   return `
@@ -559,18 +627,54 @@ function panelAreaView(a){
     </div>
     <div class="gantt">
       ${days.map((d,i)=>`<div class="dh ${iso(d)===todayIso?'today':''}">${DOW[i]}<br>${fmtDM(d)}</div>`).join('')}
-      ${rows || '<div class="none">Sem atividades nesta semana</div>'}
+      ${prBars+rows || '<div class="none">Sem atividades nesta semana</div>'}
     </div>
+    <div class="legend"><span><i class="cen"></i>📋 Programação da Central</span><span><i class="map"></i>Atividade lançada no mapa (cor = status)</span></div>
+    ${naCentral?`<p class="muted" style="font-size:12px;margin:6px 0 0">Take-off: ${tk.length?tk.map(esc).join(' · '):'<span class="semarea">nenhuma área do take-off ligada a esta área</span>'}${Array.isArray(a.tk)?'':' <span class="muted">(automático)</span>'}${PROG&&!progAtiva()?' · <span class="semarea">programação da Central não carregada para esta semana</span>':''}</p>`:''}
+    ${selCen?cenCard(selCen):''}
+    ${pr.length?`<h3>📋 Programação da Central (${pr.length})</h3><div class="list">${pr.map(r=>cenItem(r)).join('')}</div>`:''}
     <div class="row" style="margin-top:8px"><button class="primary" id="actNew">+ Nova atividade</button></div>
     ${actForm(sel, a)}
-    ${acts.length?`<h3>Lista da semana</h3><div class="list">${acts.map(t=>`<div class="item ${t.id===U.selAct?'sel':''}" data-act="${t.id}">
-        <span class="st" style="background:${STATUS[t.status]?.color}">${STATUS[t.status]?.label}</span>
+    ${acts.length?`<h3>Atividades do mapa (${acts.length})</h3><div class="list">${acts.map(t=>`<div class="item ${t.id===U.selAct?'sel':''}" data-act="${t.id}">
+        <span class="tag-map">MAPA</span><span class="st" style="background:${STATUS[t.status]?.color}">${STATUS[t.status]?.label}</span>
         <span style="flex:1">${esc(t.title)}<br><span class="muted" style="font-size:12px">${fmtDM(parseISO(t.start))}${t.end&&t.end!==t.start?' → '+fmtDM(parseISO(t.end)):''}${t.resp?' · '+esc(t.resp):''}</span></span></div>`).join('')}</div>`:''}
     <h3>Fotos da área (${photos.length})</h3>
     ${photos.length?`<div class="list">${photos.map(p=>`<div class="item" data-photo="${p.id}">${p.type==='360'?'🌐':'📷'} <span style="flex:1">${esc(p.title||'(sem título)')}</span>${p.img?'':'<span class="muted">sem foto</span>'}</div>`).join('')}</div>`:'<p class="muted">Nenhum ponto de foto nesta área. Adicione no modo Underground.</p>'}
   `;
 }
 
+function cenItem(r){
+  const st=stCen(r);
+  return `<div class="item cen ${r.uid===U.selCen?'sel':''}" data-cen="${esc(r.uid)}"><span class="tag-cen">CENTRAL</span><span class="st" style="background:${st.color}">${st.label}</span>
+    <span style="flex:1">${esc(r.tag)} · ${esc(r.etapa)}<br><span class="muted" style="font-size:12px">${nfmt(r.qtd)} ${esc(r.und)}${r.ini?' · '+fmtDM(parseISO(r.ini))+(r.fim&&r.fim!==r.ini?' → '+fmtDM(parseISO(r.fim)):''):''}${r.eng?' · '+esc(r.eng):''}${r.frente?' · '+esc(r.frente):''}</span></span></div>`;
+}
+function cenCard(r){
+  const st=stCen(r);
+  return `<div class="card"><strong>📋 Programação da Central</strong> <span class="st" style="background:${st.color}">${st.label}</span>
+    <dl class="det"><dt>Tag</dt><dd>${esc(r.tag)}${r.livre?' <span class="muted">(fora do take-off)</span>':''}</dd><dt>Descrição</dt><dd>${esc(r.desc)}</dd>
+      <dt>Área T.K</dt><dd>${esc(r.area)}</dd><dt>Atividade</dt><dd>${esc(r.atv)}</dd><dt>Etapa</dt><dd>${esc(r.etapa)}</dd>
+      <dt>Programado</dt><dd>${nfmt(r.qtd)} ${esc(r.und)}${r.hh!==''&&r.hh!=null?' · '+nfmt(r.hh)+' H.H':''}</dd>
+      <dt>Avanço</dt><dd>${r.av===''||r.av==null?'—':nfmt(r.av)+' '+esc(r.und)}</dd>
+      <dt>Período</dt><dd>${r.ini?fmtDM(parseISO(r.ini)):'semana toda'}${r.fim&&r.fim!==r.ini?' → '+fmtDM(parseISO(r.fim)):''}</dd>
+      <dt>Engenheiro</dt><dd>${esc(r.eng)||'—'}</dd><dt>Frente</dt><dd>${esc(r.frente)||'—'}</dd></dl>
+    <p class="muted" style="font-size:12px;margin:0 0 8px">Lançada na aba 1 da Central – para alterar, edite lá.</p>
+    <div class="row"><button class="primary" data-abrir="${esc(r.uid)}">Abrir na programação</button><button data-fechacen>Fechar</button></div></div>`;
+}
+function panelSemArea(){
+  const L=semAreaRows(), g={};
+  L.forEach(r=>(g[r.area||'(sem área)']=g[r.area||'(sem área)']||[]).push(r));
+  return `<p class="muted" style="margin-top:0">Linhas programadas na Central para a ${esc(PROG?PROG.sem:'')} cuja <b>área do take-off</b> não está ligada a nenhuma área do mapa.
+    Para ligar: modo <b>Underground</b> → clique na área do mapa → <b>Áreas do take-off</b>.</p>
+    ${Object.keys(g).sort((a,b)=>a.localeCompare(b,'pt-BR',{numeric:true})).map(k=>`<h3>${esc(k)} (${g[k].length})</h3><div class="list">${g[k].map(r=>cenItem(r)).join('')}</div>`).join('')||'<p class="muted">Nenhuma.</p>'}
+    ${L.find(r=>r.uid===U.selCen)?cenCard(L.find(r=>r.uid===U.selCen)):''}`;
+}
+function bindCen(){
+  const b=$('#panelBody');
+  b.querySelectorAll('[data-cen]').forEach(n=>n.onclick=()=>{ U.selCen = U.selCen===n.dataset.cen ? null : n.dataset.cen; U.selAct=null; renderPanel(); });
+  b.querySelectorAll('[data-abrir]').forEach(n=>n.onclick=()=>avisaCentral({tipo:'abrirLinha', uid:n.dataset.abrir}));
+  b.querySelectorAll('[data-fechacen]').forEach(n=>n.onclick=()=>{ U.selCen=null; renderPanel(); });
+}
+function bindSemArea(){ bindCen(); }
 function actForm(t, a){
   if(U.selAct===undefined || U.selAct===null) return '';
   const isNew = U.selAct==='new';
@@ -596,7 +700,8 @@ function bindAreaView(a){
   $('#wkNext').onclick=()=>setWeek(addDays(U.week,7));
   $('#wkToday').onclick=()=>setWeek(mondayOf(new Date()));
   $('#actNew').onclick=()=>{U.selAct='new'; renderPanel(); $('#fTitle').focus();};
-  b.querySelectorAll('[data-act]').forEach(n=>n.onclick=()=>{U.selAct=n.dataset.act; renderPanel();});
+  b.querySelectorAll('[data-act]').forEach(n=>n.onclick=()=>{U.selAct=n.dataset.act; U.selCen=null; renderPanel();});
+  bindCen();
   b.querySelectorAll('[data-photo]').forEach(n=>n.onclick=()=>showPhoto(n.dataset.photo));
   const f=$('#actForm'); if(!f) return;
   $('#fCancel').onclick=()=>{U.selAct=null; renderPanel();};
@@ -620,6 +725,10 @@ function panelEdit(){
       <label>Nome</label><input id="eName" value="${esc(a.name)}">
       <label>Descrição</label><textarea id="eDesc">${esc(a.desc)}</textarea>
       <label>Cor</label><div class="row" style="flex-wrap:wrap;gap:6px">${PALETTE.map(c=>`<button class="${a.color===c?'on':''}" data-color="${c}" style="flex:0 0 auto;padding:4px"><span class="swatch" style="background:${c}"></span></button>`).join('')}<input type="color" id="eColor" value="${a.color}" style="flex:0 0 44px;padding:2px;height:30px"></div>
+      <label>Áreas do take-off ${Array.isArray(a.tk)?'<span class="muted">(escolhidas)</span>':'<span class="muted">(automático pelo número)</span>'}</label>
+      ${PROG&&PROG.areasTK.length?`<div class="tk-list">${PROG.areasTK.map((t,i)=>`<label><input type="checkbox" data-tk="${i}" ${tkOf(a).includes(t)?'checked':''}>${esc(t)}</label>`).join('')}</div>
+        ${Array.isArray(a.tk)?'<button id="eTkAuto" style="margin-top:6px">↺ Voltar ao automático</button>':''}`
+        :'<p class="muted" style="font-size:12px;margin:2px 0">Abra o mapa pela Central (aba 4) com o take-off carregado para ver as áreas.</p>'}
       <p class="muted" style="font-size:12px">${a.points.length} vértices</p>
       <div class="row">
         <button id="eFocus">${U.focus===a.id?'Voltar à planta geral':'Expandir área (fotos internas)'}</button>
@@ -642,6 +751,12 @@ function panelEdit(){
   html+=`<h3>Pontos de foto · ${esc(scopeName(scope))} (${pts.length})</h3>`;
   html+= pts.length?`<div class="list">${pts.map(x=>`<div class="item ${x.id===U.selPhoto?'sel':''}" data-ph="${x.id}">${x.type==='360'?'🌐':'📷'} <span style="flex:1">${esc(x.title||'(sem título)')}</span>${x.img?'':'<span class="muted">sem foto</span>'}</div>`).join('')}</div>`
              : `<p class="muted">Use a ferramenta <b>Ponto de foto</b> e clique na planta.</p>`;
+  if(PROG&&PROG.areasTK.length){
+    const cnt={}; PROG.rows.forEach(r=>cnt[r.area]=(cnt[r.area]||0)+1);
+    html+=`<h3>Correlação com o take-off</h3><table class="corr">${PROG.areasTK.map(t=>{ const m=S.areas.filter(x=>tkOf(x).includes(t));
+      return `<tr><td>${esc(t)}</td><td>${m.length?m.map(x=>esc(x.name)).join(', '):'<span class="semarea">⚠ sem área no mapa</span>'}</td><td class="n" title="Linhas programadas na ${esc(PROG.sem)}">${cnt[t]?cnt[t]+' prog.':''}</td></tr>`; }).join('')}</table>
+      <p class="muted" style="font-size:12px">Contagem de linhas da ${esc(PROG.sem)} (semana selecionada na Central).</p>`;
+  }
   html+=`<h3>Planta</h3><p class="muted" style="font-size:12px">Imagem: ${S.plan.w} × ${S.plan.h} px. Ao trocar a imagem, áreas e pontos são reescalados proporcionalmente.</p>
     <button class="danger" id="eReset">Restaurar áreas iniciais</button>`;
   return html;
@@ -660,6 +775,9 @@ function bindEdit(){
       checkpoint(); S.areas=S.areas.filter(x=>x!==a); S.activities=S.activities.filter(t=>t.areaId!==a.id); S.photos=S.photos.filter(f=>f.scope!==a.id);
       if(U.focus===a.id) U.focus=null; U.selArea=null; save(); render(); };
     $('#eFocus').onclick=()=>{ U.focus = U.focus===a.id ? null : a.id; U.selPhoto=null; render(); fitFocusOrAll(); };
+    b.querySelectorAll('[data-tk]').forEach(n=>n.onchange=()=>{ checkpoint();
+      a.tk=[...b.querySelectorAll('[data-tk]:checked')].map(x=>PROG.areasTK[+x.dataset.tk]); save(); render(); });
+    const ta=$('#eTkAuto'); if(ta) ta.onclick=()=>{ checkpoint(); delete a.tk; save(); render(); };
   }
   if(p){
     trackTyping($('#pTitle'), e=>{ p.title=e.target.value; save(); renderHandlesAndPins(); });
@@ -914,7 +1032,7 @@ function onClick(d, e){
 
   if(U.mode==='above'){
     if(kind==='photo') return showPhoto(id);
-    if(kind==='area' && U.focus!==id){ U.focus=id; U.selAct=null; render(); openPanel(); fitFocusOrAll(); }
+    if(kind==='area' && U.focus!==id){ U.focus=id; U.selAct=null; U.selCen=null; U.semArea=false; render(); openPanel(); fitFocusOrAll(); }
     return;
   }
   // Underground
@@ -975,6 +1093,7 @@ $('#btnPhotos').onclick=()=>{
   try{ localStorage.setItem('planta.showPhotos', U.showPhotos?'1':'0'); }catch(err){}
   renderHandlesAndPins(); renderPhotoBtn();
 };
+$('#btnSemArea').onclick=()=>{ U.semArea=!U.semArea; U.selCen=null; if(U.semArea&&U.focus){ U.focus=null; fitAll(); } render(); };
 $('#onlyScheduled').onchange=e=>{
   U.onlyScheduled=e.target.checked;
   try{ localStorage.setItem('planta.onlyScheduled', U.onlyScheduled?'1':'0'); }catch(err){}
@@ -1040,7 +1159,8 @@ window.Planta = {
   getData: ()=>JSON.parse(JSON.stringify(S)),
   setData: d=>{ S=d; clearHistory(); save(); render(); fitAll(false); },
   focusArea: id=>{ U.focus=id; render(); openPanel(); fitFocusOrAll(); },
-  setWeek: ini=>{ if(S) setWeek(mondayOfISO(ini)); },  // ini = 'AAAA-MM-DD' (qualquer dia da semana)
+  setWeek: ini=>{ if(S) setWeek(mondayOfISO(ini), true); },  // ini = 'AAAA-MM-DD' (qualquer dia da semana)
+  setProgramacao: p=>{ PROG=p; if(S) render(); },          // {sem, ini, fim, rows, areasTK} – enviado pela Central
   onChange: null,  // atribua uma função para ser avisado a cada salvamento
 };
 const _set=DB.set.bind(DB); DB.set=async(k,v)=>{ await _set(k,v); window.Planta.onChange?.(JSON.parse(JSON.stringify(v))); };
@@ -1048,8 +1168,9 @@ const _set=DB.set.bind(DB); DB.set=async(k,v)=>{ await _set(k,v); window.Planta.
 // dentro da Central (aba 4): a semana escolhida lá também muda a semana daqui
 let semCentral=null;
 window.addEventListener('message',e=>{
-  if(e.source!==window.parent||!e.data||e.data.tipo!=='semana') return;
-  semCentral=e.data.ini; if(S) window.Planta.setWeek(semCentral);
+  if(e.source!==window.parent||!e.data) return;
+  if(e.data.tipo==='semana'){ semCentral=e.data.ini; if(S) window.Planta.setWeek(semCentral); }
+  if(e.data.tipo==='programacao'){ PROG=e.data; if(S) render(); }
 });
 
 /* ---------------- inicialização ---------------- */
@@ -1058,6 +1179,7 @@ window.addEventListener('message',e=>{
   S = (await DB.get('state')) || seedState();
   if(semCentral) U.week=mondayOfISO(semCentral);
   render(); requestAnimationFrame(()=>fitAll(false));
+  avisaCentral({tipo:'mapaPronto'});
 })();
 </script>
 </body>

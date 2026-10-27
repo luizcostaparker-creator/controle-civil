@@ -271,6 +271,9 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 .tabs .tab{flex:1 1 0;text-align:center;padding:11px 12px;min-width:160px}
 .tabpane{margin-top:12px}
 .tabpane[hidden]{display:none}
+.tab-warn{display:inline-block;margin-left:6px;padding:0 7px;border-radius:999px;background:#5a3a00;color:#ffd36b;font-size:12px;font-weight:700}
+#grid tr.flash td{animation:flashRow 2s ease-out}
+@keyframes flashRow{0%,40%{background:rgba(67,176,42,.45)}100%{background:transparent}}
 .mapa-frame{display:block;width:100%;height:calc(100vh - 190px);height:calc(100dvh - 190px);min-height:520px;border:1px solid var(--line);border-radius:10px;background:#0f1418}
 #tab-prog .kpis{margin-top:0}
 .eng-cel{margin:8px 0 0;padding:8px 10px;border:1px solid var(--line);border-left:4px solid #43b02a;border-radius:6px}
@@ -1204,7 +1207,7 @@ function loadState(){
   if(!s.sem) s.sem=currentSem();
   return s;
 }
-function save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); }catch(e){ toast('Não foi possível salvar no navegador – use “Salvar backup”.'); } }
+function save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); }catch(e){ toast('Não foi possível salvar no navegador – use “Salvar backup”.'); } mapaAgenda(); }
 function semRange(sem){
   const n=parseInt(String(sem).replace(/\D/g,''),10)||1;
   const a=new Date(W001); a.setDate(a.getDate()+(n-1)*7); const b=new Date(a); b.setDate(b.getDate()+6);
@@ -2456,7 +2459,39 @@ function mapaAbrir(){
 function mapaSemana(){
   const f=$('#mapaFrame'); if(!f||!f.src||!f.contentWindow) return;
   try{ f.contentWindow.postMessage({tipo:'semana', ini:semRange(state.sem).ini},'*'); }catch(e){}
+  mapaProg();
 }
+// programação da semana + áreas do take-off → mapa (lá as áreas do mapa são ligadas às do take-off)
+function mapaProg(){
+  const f=$('#mapaFrame'); if(!f||!f.src||!f.contentWindow) return;
+  const wk=semRange(state.sem);
+  const rows=weekRows().map(r=>{ const c=calc(r); return {uid:r.uid, tag:r.tag||'', desc:r.desc||'', area:r.area||'', atv:r.atv||'', etapa:r.etapa||'',
+    qtd:r.qtd, und:c.und||r.und||'', hh:c.hh, ini:r.ini||'', fim:r.fim||'', frente:r.frente||'', eng:r.eng||'', av:(r.av==null?'':r.av), livre:!!r.livre}; });
+  const areasTK=idx?idx.areas.slice():[...new Set(state.rows.map(r=>r.area).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt-BR',{numeric:true}));
+  try{ f.contentWindow.postMessage({tipo:'programacao', sem:state.sem, ini:wk.ini, fim:wk.fim, rows, areasTK},'*'); }catch(e){}
+}
+var mapaT=null;  // var: save() pode rodar antes desta linha na inicialização
+function mapaAgenda(){ const f=document.getElementById('mapaFrame'); if(!f||!f.src) return; clearTimeout(mapaT); mapaT=setTimeout(mapaProg,300); }
+window.addEventListener('message',e=>{
+  const f=$('#mapaFrame'); if(!f||e.source!==f.contentWindow||!e.data) return;
+  const d=e.data;
+  if(d.tipo==='mapaPronto') mapaSemana();
+  if(d.tipo==='semanaMapa'){  // semana trocada no próprio mapa: a Central acompanha
+    const n=Math.round((new Date(d.ini+'T12:00:00')-W001)/(7*864e5))+1, sem='SEM-'+n;
+    if(n>0&&sem!==state.sem){ state.sem=sem; save(); fillSem(); fillLists(); renderEtapas(); renderGrid(); renderKpis(); mapaProg(); }
+  }
+  if(d.tipo==='resumoMapa'){
+    $('#tb-mapa').innerHTML='4. Mapa geral'+(d.semArea?` <span class="tab-warn" title="Linhas programadas da ${esc(d.sem||state.sem)} sem área ligada no mapa">⚠ ${d.semArea}</span>`:'');
+  }
+  if(d.tipo==='abrirLinha'){  // "Abrir na programação" no mapa
+    const r=state.rows.find(x=>x.uid===d.uid); if(!r) return;
+    showTab('prog'); if(curPSub!=='main') showPSub('main');
+    $('#gFilter').value=r.tag||''; renderGrid();
+    const tr=document.querySelector(`#grid tr[data-uid="${CSS.escape(r.uid)}"]`);
+    if(tr){ tr.scrollIntoView({block:'center'}); tr.classList.add('flash'); setTimeout(()=>tr.classList.remove('flash'),2200); }
+    toast(`Programação filtrada pela tag ${r.tag} (veio do mapa).`);
+  }
+});
 function showTab(t){
   curTab=t;
   document.querySelectorAll('.tab').forEach(b=>{ const on=b.dataset.tab===t; b.setAttribute('aria-selected',on); b.tabIndex=on?0:-1; });
@@ -3288,7 +3323,7 @@ window.__prog={parseBase:(buf,n)=>{ const b=parseBase(buf,n); setBase(b); return
 </script>
 <div id="appUpd" hidden style="position:fixed;left:12px;right:12px;bottom:calc(16px + env(safe-area-inset-bottom));margin:0 auto;width:fit-content;max-width:calc(100vw - 24px);z-index:9999;background:#000;color:#fff;border:1px solid #43b02a;box-shadow:0 0 14px rgba(67,176,42,.35);border-radius:10px;padding:10px 14px;font:14px 'Segoe UI',Arial,sans-serif">✓ App atualizado para a versão mais recente.</div>
 <script>
-/* app instalável: guarda o sistema e as bibliotecas no aparelho para abrir sem internet (versão 2026-10-25-205328)
+/* app instalável: guarda o sistema e as bibliotecas no aparelho para abrir sem internet (versão 2026-10-26-095826)
    Atualiza sozinho: quando há versão nova publicada, ela assume e a página recarrega uma vez. */
 if('serviceWorker' in navigator && location.protocol!=='file:'){
   var jaInstalado=!!navigator.serviceWorker.controller; // primeira instalação não recarrega
