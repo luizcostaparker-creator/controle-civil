@@ -1,7 +1,7 @@
-/* Central de controle CIVIL – service worker (gerado por ATUALIZAR APP; versão 2026-10-26-095826)
+/* Central de controle CIVIL – service worker (gerado por ATUALIZAR APP; versão 2026-10-27-164354)
    Guarda o sistema e as bibliotecas no aparelho: o app abre sem internet.
    Os dados da obra NÃO passam por aqui – ficam no navegador do aparelho (localStorage + IndexedDB). */
-const CACHE = 'controle-civil-2026-10-26-095826';
+const CACHE = 'controle-civil-2026-10-27-164354';
 // opcionais: se faltar algum no site, o app instala mesmo assim
 const ICONES = ['./icon-192.png', './icon-512.png', './apple-touch-icon.png',
   './apontamento.html', './apontamento.webmanifest', './icon-ap-192.png', './icon-ap-512.png', './apple-touch-icon-ap.png', './mapa.html'];
@@ -23,6 +23,18 @@ self.addEventListener('activate', e => {
     .then(() => self.clients.claim()));
 });
 self.addEventListener('fetch', e => {
+  // app Apontamento recebendo o arquivo pelo "Compartilhar" do Android (share_target do apontamento.webmanifest):
+  // guarda o arquivo e abre o app com ?recebido=1, que o lê daqui
+  if (e.request.method === 'POST' && new URL(e.request.url).searchParams.has('receber')) {
+    e.respondWith((async () => {
+      try {
+        const fd = await e.request.formData(), arq = fd.get('arquivo');
+        if (arq && arq.size) await (await caches.open('apontamento-recebido')).put('./recebido', new Response(arq));
+      } catch (err) {}
+      return Response.redirect('./apontamento.html?recebido=1', 303);
+    })());
+    return;
+  }
   if (e.request.method !== 'GET') return;
   // páginas (sistema e apontamento): busca a versão publicada quando há internet (e guarda); sem internet usa a guardada
   if (e.request.mode === 'navigate') {

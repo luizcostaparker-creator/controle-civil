@@ -29,6 +29,11 @@ main{max-width:720px;margin:0 auto;padding:14px 12px 40px}
 .big{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;text-align:left;cursor:pointer;
   background:#43b02a;color:#000;border:0;border-radius:12px;padding:16px 18px;font-size:18px;font-weight:700;box-shadow:0 0 16px rgba(67,176,42,.35)}
 .big small{font-size:13px;font-weight:500;opacity:.8}
+label.big{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+label.big:active{transform:scale(.99);filter:brightness(1.05)}
+/* campo de arquivo visualmente escondido (não display:none): o toque no rótulo abre o seletor de forma nativa no Android */
+.sr-file{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);border:0;opacity:0}
+.dica{background:var(--panel);border:1px solid var(--line);border-left:4px solid #43b02a;border-radius:10px;padding:10px 12px;margin-top:10px;font-size:14px}
 h2{font-size:13px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:22px 0 8px}
 .sem{display:flex;align-items:stretch;gap:0;background:var(--panel);border:1px solid var(--line);border-left:6px solid var(--line);border-radius:10px;margin-bottom:10px;overflow:hidden}
 .sem.ok{border-left-color:var(--accent)}.sem.par{border-left-color:var(--amber)}
@@ -51,18 +56,23 @@ h2{font-size:13px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted
 <body>
 <header class="top"><h1>Apontamento <span>· Controle CIVIL</span></h1><div class="sub">Avanço semanal das atividades programadas</div></header>
 <main>
-  <button class="big" id="abrir">📂 Abrir arquivo recebido<small>o APONTAMENTO … .html que chegou do planejamento</small></button>
-  <input type="file" id="arq" accept=".html,.htm,.json,text/html,application/json" hidden>
+  <label class="big" id="abrir" for="arq" role="button" tabindex="0">📂 Abrir arquivo recebido<small>o APONTAMENTO … .html que chegou do planejamento</small></label>
+  <input type="file" id="arq" class="sr-file" aria-hidden="true" tabindex="-1">
+  <div class="dica" id="dicaShare"><b>Mais fácil no Android:</b> no WhatsApp, toque e segure no arquivo → <b>Compartilhar</b> (↗) → <b>Apontamento</b>. Ele abre aqui direto, sem procurar pasta.</div>
   <h2>Minhas semanas</h2>
   <div id="lista"></div>
   <details class="ajuda">
     <summary>Como abrir o arquivo que chegou pelo WhatsApp</summary>
-    <p style="margin:8px 0 2px"><b>Android</b></p>
-    <ol><li>No WhatsApp, toque no arquivo para baixar.</li><li>Aqui, toque em <b>Abrir arquivo recebido</b> → procure em <b>Downloads</b> ou <b>WhatsApp › Documents</b>.</li></ol>
+    <p style="margin:8px 0 2px"><b>Android – pelo Compartilhar (recomendado)</b></p>
+    <ol><li>No WhatsApp, toque no arquivo para baixar.</li><li>Toque e segure no arquivo → ícone <b>Compartilhar</b> (↗) → escolha <b>Apontamento</b>.</li>
+      <li>Se o Apontamento não aparecer na lista: o app precisa estar instalado (menu ⋮ do Chrome › Instalar app). Se já estava instalado antes desta versão, desinstale e instale de novo.</li></ol>
+    <p style="margin:8px 0 2px"><b>Android – pelo botão Abrir arquivo recebido</b></p>
+    <ol><li>No seletor, toque em ☰ e procure em <b>Downloads</b>, ou em <b>Armazenamento interno › Android › media › com.whatsapp › WhatsApp › Media › WhatsApp Documents</b>.</li>
+      <li>Dica: no WhatsApp, menu ⋮ do arquivo › <b>Salvar</b> (ou "Salvar em Downloads") deixa o arquivo em Downloads, mais fácil de achar.</li></ol>
     <p style="margin:8px 0 2px"><b>iPhone</b></p>
     <ol><li>No WhatsApp, abra o arquivo → botão <b>Compartilhar</b> → <b>Salvar em Arquivos</b>.</li><li>Aqui, toque em <b>Abrir arquivo recebido</b> → escolha o arquivo salvo.</li></ol>
     <p style="margin:8px 0 2px"><b>Ao terminar</b></p>
-    <ol><li>Dentro da semana, toque em <b>Gerar arquivo de retorno</b> e envie pelo WhatsApp ou e-mail para o planejamento.</li></ol>
+    <ol><li>Dentro da semana, toque em <b>Gerar arquivo de retorno</b> → <b>📤 Enviar</b> e escolha o WhatsApp ou e-mail do planejamento (ou <b>⬇ Salvar no celular</b>).</li></ol>
   </details>
   <p class="priv">Os apontamentos ficam guardados só neste celular. Nada é enviado para a internet – o retorno vai apenas para quem você escolher.</p>
 </main>
@@ -110,6 +120,11 @@ input[type=text],input[type=search],input[type=date],select{border:1px solid var
 table{width:100%;border-collapse:collapse;font-size:13px}td,th{padding:6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
 .toast{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);background:#000;color:#fff;padding:10px 16px;border-radius:8px;display:none;z-index:9;max-width:92vw}
 #back{display:none}.emb #back{display:inline-flex}
+.ret-box{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));z-index:8;max-width:560px;margin:0 auto;background:var(--panel);border:1px solid #43b02a;border-radius:12px;padding:12px;box-shadow:0 0 18px rgba(67,176,42,.35),0 10px 30px rgba(0,0,0,.4)}
+.ret-box[hidden]{display:none}
+.ret-btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.ret-btns .btn{flex:1 1 140px;min-height:48px;font-size:16px}
+#retMsg{color:var(--warn);margin-top:6px}
 .top #back{background:#141414;color:#fff;border-color:#3a3a3a}
 /* celular: botão de retorno fixo embaixo, campos grandes, fora da programação em cartões */
 @media (max-width:640px){
@@ -155,6 +170,11 @@ table{width:100%;border-collapse:collapse;font-size:13px}td,th{padding:6px;borde
 <p class="hint" style="text-align:center">Ao terminar, clique em <b>Gerar arquivo de retorno</b> e envie o arquivo .json para o planejamento.</p>
 </main>
 <datalist id="dTag"></datalist><datalist id="dArea"></datalist><datalist id="dEt"></datalist><datalist id="dUnd"></datalist><datalist id="dSup"></datalist><datalist id="dEnc"></datalist>
+<div class="ret-box" id="retBox" hidden role="dialog" aria-label="Arquivo de retorno">
+  <b>✓ Arquivo de retorno pronto</b><div class="hint" id="retNome"></div>
+  <div class="ret-btns"><button class="btn p" id="retShare">📤 Enviar (WhatsApp, e-mail…)</button><button class="btn" id="retSave">⬇ Salvar no celular</button><button class="btn" id="retClose">Fechar</button></div>
+  <div class="hint" id="retMsg"></div>
+</div>
 <div class="toast" id="toast" role="status"></div>
 <script id="pkg" type="application/json">__PKG__<\/script>
 <script>
@@ -251,17 +271,30 @@ $('#ret').addEventListener('click',function(){
   if((pen||semMot)&&!confirm((pen?pen+' atividade(s) sem avanço informado.\n':'')+(semMot?semMot+' desvio(s) sem motivo.\n':'')+'\nGerar o arquivo de retorno mesmo assim?')) return;
   var R={app:'progCivilRetorno', v:1, id:P.id, sem:P.sem, eng:P.eng, gerado:new Date().toISOString(),
     lines:P.lines.map(function(l){ var a=S.lines[l.u]; return {u:l.u, av:a.av, motivo:a.motivo, dataReal:a.dataReal, obsEng:a.obsEng}; }), fora:S.fora};
-  var nome='RETORNO - '+P.eng+' - '+P.sem+'.json', txt=JSON.stringify(R);
-  if(EMB){ parent.postMessage({tipo:'retorno', id:P.id, nome:nome, json:txt},'*'); return; }
-  var blob=new Blob([txt],{type:'application/json'});
-  // celular: abre o menu Compartilhar (WhatsApp, e-mail…) em vez de baixar
-  if(matchMedia('(pointer:coarse)').matches&&navigator.canShare){ var file=new File([blob],nome,{type:'application/json'});
-    if(navigator.canShare({files:[file]})){ navigator.share({files:[file],title:nome}).then(function(){ toast('Retorno enviado.'); }).catch(function(){}); return; } }
-  var a=document.createElement('a');
-  a.href=URL.createObjectURL(blob); a.download=nome; document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(function(){ URL.revokeObjectURL(a.href); },4000);
-  toast('Arquivo de retorno gerado. Envie-o para o planejamento.');
+  RET={nome:'RETORNO - '+P.eng+' - '+P.sem, txt:JSON.stringify(R)};
+  // PC: baixa direto. Celular: painel com Enviar / Salvar – o Enviar precisa de um toque próprio
+  // (o Android só abre o Compartilhar logo após um toque) e vai como .txt (o Android não compartilha .json).
+  if(!matchMedia('(pointer:coarse)').matches){ salvarRet(); return; }
+  $('#retNome').textContent=RET.nome; $('#retMsg').textContent='';
+  $('#retShare').hidden=!(navigator.canShare&&navigator.canShare({files:[arqShare()]}));
+  $('#retBox').hidden=false;
 });
+var RET=null;
+function arqShare(){ return new File([RET.txt], RET.nome+'.txt', {type:'text/plain'}); }
+function avisaEnviado(){ if(EMB) parent.postMessage({tipo:'enviado', id:P.id},'*'); }
+function salvarRet(){
+  var blob=new Blob([RET.txt],{type:'application/json'}), a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download=RET.nome+'.json'; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); },4000);
+  avisaEnviado(); $('#retBox').hidden=true;
+  toast('Salvo em Downloads: '+RET.nome+'.json – envie para o planejamento.');
+}
+$('#retShare').addEventListener('click',function(){
+  navigator.share({files:[arqShare()], title:RET.nome}).then(function(){ avisaEnviado(); $('#retBox').hidden=true; toast('Retorno enviado.'); })
+    .catch(function(err){ if(err&&err.name==='AbortError') return; $('#retMsg').textContent='Não foi possível abrir o Compartilhar ('+(err&&err.name||err)+'). Use ⬇ Salvar no celular e envie o arquivo pelo WhatsApp.'; });
+});
+$('#retSave').addEventListener('click',salvarRet);
+$('#retClose').addEventListener('click',function(){ $('#retBox').hidden=true; });
 render();
 })();
 <\/script>
@@ -340,29 +373,24 @@ window.addEventListener('popstate',function(){ if(aberto) fechar(); });
 window.addEventListener('message',function(e){
   var f=$('#tela'); if(!aberto||e.source!==f.contentWindow||!e.data) return;
   if(e.data.tipo==='voltar'){ history.back(); return; }
-  if(e.data.tipo==='retorno') enviar(e.data);
+  if(e.data.tipo==='enviado') marcaEnviado(e.data.id);
 });
 function marcaEnviado(id){ var L=ler(LST,[]); L.forEach(function(x){ if(x.id===id) x.enviado=Date.now(); }); grava(LST,L); }
-function enviar(d){
-  var blob=new Blob([d.json],{type:'application/json'}), file=new File([blob],d.nome,{type:'application/json'});
-  if(navigator.canShare&&navigator.canShare({files:[file]})){
-    navigator.share({files:[file],title:d.nome}).then(function(){ marcaEnviado(d.id); toast('Retorno enviado.'); })
-      .catch(function(err){ if(err&&err.name!=='AbortError') baixar(blob,d); });
-    return;
-  }
-  baixar(blob,d);
-}
-function baixar(blob,d){
-  var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=d.nome; document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(function(){ URL.revokeObjectURL(a.href); },4000);
-  marcaEnviado(d.id); toast('Arquivo de retorno salvo em Downloads. Envie-o para o planejamento.');
-}
 
-$('#abrir').onclick=function(){ $('#arq').value=''; $('#arq').click(); };
+// teclado: Enter/Espaço no rótulo também abre o seletor
+$('#abrir').addEventListener('keydown',function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); $('#arq').click(); } });
 $('#arq').onchange=function(){
-  var fl=this.files&&this.files[0]; if(!fl) return;
-  fl.text().then(function(t){ receber(pacoteDe(t)); }).catch(function(err){ alert('Não foi possível abrir o arquivo.\n\n'+(err&&err.message||err)); });
+  var inp=this, fl=inp.files&&inp.files[0]; if(!fl) return;
+  fl.text().then(function(t){ inp.value=''; receber(pacoteDe(t)); }).catch(function(err){ inp.value=''; alert('Não foi possível abrir o arquivo.\n\n'+(err&&err.message||err)); });
 };
+// arquivo recebido pelo "Compartilhar" do Android (o service worker guarda e abre esta página com ?recebido=1)
+if(/[?&]recebido=1/.test(location.search)){
+  history.replaceState(null,'',location.pathname);
+  caches.open('apontamento-recebido').then(function(c){ return c.match('./recebido').then(function(r){
+    if(!r){ toast('Nenhum arquivo recebido.'); return; }
+    return r.text().then(function(t){ c.delete('./recebido'); receber(pacoteDe(t)); });
+  }); }).catch(function(err){ alert('Não foi possível abrir o arquivo compartilhado.\n\n'+(err&&err.message||err)); });
+}
 $('#lista').addEventListener('click',function(e){
   var b=e.target.closest('button'); if(!b) return;
   if(b.hasAttribute('data-del')){ var id=b.getAttribute('data-del'), p=ler(LST,[]).filter(function(x){ return x.id===id; })[0];
@@ -375,7 +403,7 @@ lista();
 </script>
 <div id="appUpd" hidden style="position:fixed;left:12px;right:12px;bottom:calc(16px + env(safe-area-inset-bottom));margin:0 auto;width:fit-content;max-width:calc(100vw - 24px);z-index:9999;background:#000;color:#fff;border:1px solid #43b02a;box-shadow:0 0 14px rgba(67,176,42,.35);border-radius:10px;padding:10px 14px;font:14px 'Segoe UI',Arial,sans-serif">✓ App atualizado para a versão mais recente.</div>
 <script>
-/* app instalável: guarda o sistema e as bibliotecas no aparelho para abrir sem internet (versão 2026-10-25-205328)
+/* app instalável: guarda o sistema e as bibliotecas no aparelho para abrir sem internet (versão 2026-10-27-164354)
    Atualiza sozinho: quando há versão nova publicada, ela assume e a página recarrega uma vez. */
 if('serviceWorker' in navigator && location.protocol!=='file:'){
   var jaInstalado=!!navigator.serviceWorker.controller; // primeira instalação não recarrega
