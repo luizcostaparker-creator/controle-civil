@@ -339,7 +339,8 @@ async function pdfPagina(pdf, n, maxLado){
   const pg=await pdf.getPage(n), v1=pg.getViewport({scale:1}), sc=maxLado/Math.max(v1.width,v1.height), v=pg.getViewport({scale:sc});
   const c=document.createElement('canvas'); c.width=Math.round(v.width); c.height=Math.round(v.height);
   const g=c.getContext('2d'); g.fillStyle='#fff'; g.fillRect(0,0,c.width,c.height);
-  await pg.render({canvasContext:g, viewport:v}).promise; return c;
+  // intent 'print': desenha sem depender da tela estar visível (o modo normal pausa se o app for para segundo plano)
+  await pg.render({canvasContext:g, viewport:v, intent:'print'}).promise; return c;
 }
 // PDF: mostra as páginas em miniatura para escolher
 async function escolhePaginaPDF(file){
