@@ -274,7 +274,8 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 .tab-warn{display:inline-block;margin-left:6px;padding:0 7px;border-radius:999px;background:#5a3a00;color:#ffd36b;font-size:12px;font-weight:700}
 #grid tr.flash td{animation:flashRow 2s ease-out}
 @keyframes flashRow{0%,40%{background:rgba(67,176,42,.45)}100%{background:transparent}}
-.mapa-frame{display:block;width:100%;height:calc(100vh - 190px);height:calc(100dvh - 190px);min-height:520px;border:1px solid var(--line);border-radius:10px;background:#0f1418}
+.mapa-frame[hidden]{display:none}
+.mapa-frame{display:block;width:100%;height:calc(100vh - 235px);height:calc(100dvh - 235px);min-height:520px;border:1px solid var(--line);border-radius:10px;background:#0f1418}
 #tab-prog .kpis{margin-top:0}
 .eng-cel{margin:8px 0 0;padding:8px 10px;border:1px solid var(--line);border-left:4px solid #43b02a;border-radius:6px}
 
@@ -532,7 +533,12 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 
   <!-- ABA 4: MAPA GERAL (planta de áreas e atividades – mapa.html + planta.jpg na mesma pasta) -->
   <div class="tabpane" id="tab-mapa" role="tabpanel" aria-labelledby="tb-mapa" hidden>
+    <nav class="subtabs" role="tablist" aria-label="Mapa geral">
+      <button role="tab" class="subtab" data-sub="mapa" id="ms-mapa" aria-controls="mapaFrame" aria-selected="true">4.1. Mapa</button>
+      <button role="tab" class="subtab" data-sub="prancha" id="ms-prancha" aria-controls="mapaFrame" aria-selected="false">4.2. Prancha</button>
+    </nav>
     <iframe id="mapaFrame" class="mapa-frame" title="Mapa geral – planta de áreas e atividades" data-src="mapa.html"></iframe>
+    <iframe id="pranchaFrame" class="mapa-frame" title="Prancha – desenho sobre PDF, imagens e foto aérea" data-src="prancha.html" hidden></iframe>
   </div>
 
   <!-- ABA 3: BANCO DE DADOS -->
@@ -2475,6 +2481,7 @@ let curTab='prog';
    mapa.html é o sistema da planta (próprio armazenamento no navegador); carrega só na 1ª vez que a aba abre.
    A semana escolhida aqui é enviada para lá. */
 function mapaAbrir(){
+  if(curMSub==='prancha'){ const p=$('#pranchaFrame'); if(!p.src) p.src=p.dataset.src; return; }   // 4.2: prancha (sem ligação com o mapa)
   const f=$('#mapaFrame');
   if(!f.src){ f.addEventListener('load',mapaSemana); f.src=f.dataset.src; }
   else mapaSemana();
@@ -2482,8 +2489,19 @@ function mapaAbrir(){
 function mapaSemana(){
   const f=$('#mapaFrame'); if(!f||!f.src||!f.contentWindow) return;
   try{ f.contentWindow.postMessage({tipo:'semana', ini:semRange(state.sem).ini},'*'); }catch(e){}
-  mapaProg();
+  mapaSecao(); mapaProg();
 }
+// subabas 4.1 Mapa (mapa.html) e 4.2 Prancha (prancha.html, sistema à parte, com dados próprios)
+let curMSub=(()=>{ try{ return localStorage.getItem('progCivil.msub')==='prancha'?'prancha':'mapa'; }catch(e){ return 'mapa'; } })();
+function mapaSecao(){ const f=$('#mapaFrame'); if(!f||!f.src||!f.contentWindow) return; try{ f.contentWindow.postMessage({tipo:'secao', secao:'mapa'},'*'); }catch(e){} }
+function showMSub(s){
+  curMSub=s; try{ localStorage.setItem('progCivil.msub',s); }catch(e){}
+  document.querySelectorAll('#tab-mapa > .subtabs .subtab').forEach(b=>{ const on=b.dataset.sub===s; b.setAttribute('aria-selected',on); b.tabIndex=on?0:-1; });
+  $('#mapaFrame').hidden=s!=='mapa'; $('#pranchaFrame').hidden=s!=='prancha';
+  if(typeof curTab!=='undefined'&&curTab==='mapa') mapaAbrir();
+}
+document.querySelector('#tab-mapa > .subtabs').addEventListener('click',e=>{ const b=e.target.closest('.subtab'); if(b) showMSub(b.dataset.sub); });
+showMSub(curMSub);
 // programação da semana + áreas do take-off → mapa (lá as áreas do mapa são ligadas às do take-off)
 function mapaProg(){
   const f=$('#mapaFrame'); if(!f||!f.src||!f.contentWindow) return;
@@ -2499,6 +2517,7 @@ window.addEventListener('message',e=>{
   const f=$('#mapaFrame'); if(!f||e.source!==f.contentWindow||!e.data) return;
   const d=e.data;
   if(d.tipo==='mapaPronto') mapaSemana();
+
   if(d.tipo==='semanaMapa'){  // semana trocada no próprio mapa: a Central acompanha
     const n=Math.round((new Date(d.ini+'T12:00:00')-W001)/(7*864e5))+1, sem='SEM-'+n;
     if(n>0&&sem!==state.sem){ state.sem=sem; save(); fillSem(); fillLists(); renderEtapas(); renderGrid(); renderKpis(); mapaProg(); }
@@ -3346,7 +3365,7 @@ window.__prog={parseBase:(buf,n)=>{ const b=parseBase(buf,n); setBase(b); return
 </script>
 <div id="appUpd" hidden style="position:fixed;left:12px;right:12px;bottom:calc(16px + env(safe-area-inset-bottom));margin:0 auto;width:fit-content;max-width:calc(100vw - 24px);z-index:9999;background:#000;color:#fff;border:1px solid #43b02a;box-shadow:0 0 14px rgba(67,176,42,.35);border-radius:10px;padding:10px 14px;font:14px 'Segoe UI',Arial,sans-serif">✓ App atualizado para a versão mais recente.</div>
 <script>
-/* app instalável: guarda o sistema e as bibliotecas no aparelho para abrir sem internet (versão 2026-10-27-164354)
+/* app instalável: guarda o sistema e as bibliotecas no aparelho para abrir sem internet (versão 2026-10-28-144244)
    Atualiza sozinho: quando há versão nova publicada, ela assume e a página recarrega uma vez. */
 if('serviceWorker' in navigator && location.protocol!=='file:'){
   var jaInstalado=!!navigator.serviceWorker.controller; // primeira instalação não recarrega

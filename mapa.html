@@ -55,6 +55,7 @@ main{position:relative;display:flex;min-height:0}
 #hud{position:absolute;left:12px;bottom:12px;display:flex;gap:6px;align-items:center}
 #hud button{background:#171e24e6}
 #crumb{position:absolute;left:12px;top:12px;display:flex;gap:8px;align-items:center;background:#171e24e6;border:1px solid var(--line);border-radius:8px;padding:6px 10px}
+body.m-board #hint{display:none}
 #hint{position:absolute;right:12px;bottom:12px;background:#171e24e6;border:1px solid var(--line);border-radius:8px;padding:6px 10px;color:var(--muted);font-size:12px;max-width:420px}
 #empty{position:absolute;left:50%;top:12px;transform:translateX(-50%);display:flex;align-items:center;gap:12px;background:#171e24ee;border:1px dashed var(--line);border-radius:10px;padding:8px 12px}
 
@@ -123,6 +124,25 @@ dialog::backdrop{background:#000b}
 #panoView.moved #panoHint{opacity:0}
 .thumb{width:100%;max-height:200px;object-fit:cover;border-radius:6px;border:1px solid var(--line);margin-top:6px}
 .kbd{font-family:ui-monospace,Consolas,monospace;font-size:11px;border:1px solid var(--line);border-radius:4px;padding:0 4px}
+/* prancha (desenho livre sobre a planta) */
+#boardTools select{width:auto;max-width:180px}
+/* dentro da Central: 4.1 Mapa (Aboveground/Underground) e 4.2 Prancha (só desenho) */
+body.sec-prancha #modeSeg{display:none}
+body.sec-mapa #modeSeg [data-mode="board"]{display:none}
+body.sec-mapa .so-prancha{display:none}   /* a prancha agora é a aba 4.2 (prancha.html) */
+.bd-colors{display:inline-flex;gap:3px;align-items:center}
+.bd-colors button{width:24px;height:24px;padding:0;border-radius:50%;border:2px solid #0006}
+.bd-colors button.on{outline:2px solid #fff;outline-offset:1px}
+.bd-colors input[type=color]{width:30px;height:26px;padding:1px}
+.bd-sep{width:1px;align-self:stretch;background:var(--line);margin:0 2px}
+#expDlg .body{padding:14px 16px;display:grid;gap:10px;min-width:min(520px,88vw)}
+#expDlg fieldset{border:1px solid var(--line);border-radius:8px;padding:6px 10px;margin:0}
+#expDlg legend{font-size:12px;color:var(--muted);padding:0 4px}
+#expDlg fieldset label{display:inline-flex;gap:6px;align-items:center;margin:4px 14px 4px 0;color:var(--text);font-size:13px;cursor:pointer}
+#expDlg fieldset input[type=checkbox],#expDlg fieldset input[type=radio]{width:auto;margin:0}
+#expDlg .btns{display:flex;flex-wrap:wrap;gap:8px}
+#expDlg .btns button{flex:1 1 180px;padding:10px}
+#expMsg{font-size:12px;color:var(--muted);min-height:16px}
 /* celular / tela estreita: painel da área embaixo da planta */
 @media (max-width:700px){
   header{gap:6px;padding:6px 8px}
@@ -134,6 +154,11 @@ dialog::backdrop{background:#000b}
   aside{width:100%;max-width:none;flex:1 1 55%;border-left:0;border-top:1px solid var(--line)}
   #crumb{padding:4px 6px}
   #photoView{width:96vw;height:70vh}
+  /* prancha no celular: só o necessário para desenhar */
+  body.m-board #btnLoadPlan,body.m-board #btnExport,body.m-board #btnImport,body.m-board .bd-sep,body.m-board #bdShowTxt{display:none}
+  #boardTools{gap:4px}
+  #boardTools button,#boardTools select{padding:5px 8px}
+  .bd-colors button{width:22px;height:22px}
 }
 </style>
 </head>
@@ -144,6 +169,7 @@ dialog::backdrop{background:#000b}
     <div class="seg" id="modeSeg">
       <button data-mode="above" class="on" title="Visualização e programação">Aboveground</button>
       <button data-mode="under" title="Edição da planta">Underground</button>
+      <button data-mode="board" title="Desenhar sobre a planta: traço livre, formas, setas e textos">Prancha</button>
     </div>
     <div class="tools" id="viewTools">
       <div class="week-nav">
@@ -166,13 +192,39 @@ dialog::backdrop{background:#000b}
         <button data-tool="photo" title="Adicionar ponto de foto (F)">Ponto de foto</button>
         <button data-tool="photo360" title="Adicionar ponto de foto 360° (G)">Foto 360°</button>
       </div>
-      <button id="btnUndo" title="Desfazer (Ctrl+Z)" disabled>↶ Desfazer</button>
-      <button id="btnRedo" title="Refazer (Ctrl+Y)" disabled>↷ Refazer</button>
+      <button id="btnUndo" class="hUndo" title="Desfazer (Ctrl+Z)" disabled>↶ Desfazer</button>
+      <button id="btnRedo" class="hRedo" title="Refazer (Ctrl+Y)" disabled>↷ Refazer</button>
+    </div>
+    <div class="tools hidden" id="boardTools">
+      <select id="bdSel" title="Prancha atual"></select>
+      <button id="bdNew" title="Nova prancha">＋</button>
+      <button id="bdRen" title="Renomear prancha">✎</button>
+      <button id="bdDel" title="Excluir prancha" class="danger">🗑</button>
+      <span class="bd-sep"></span>
+      <div class="seg" id="bdToolSeg">
+        <button data-bt="select" class="on" title="Selecionar / mover desenhos; arrastar no vazio move a planta (V)">✋</button>
+        <button data-bt="pen" title="Traço livre (P)">✏️</button>
+        <button data-bt="line" title="Linha (L)">╱</button>
+        <button data-bt="arrow" title="Seta (A)">➚</button>
+        <button data-bt="rect" title="Retângulo (R)">▭</button>
+        <button data-bt="ellipse" title="Elipse (E)">◯</button>
+        <button data-bt="text" title="Texto (T) – clique onde o texto começa">T</button>
+      </div>
+      <span class="bd-colors" id="bdColors"></span>
+      <select id="bdW" title="Espessura do traço"><option value="0.5">Fina</option><option value="1" selected>Média</option><option value="2">Grossa</option><option value="4">Extra</option></select>
+      <select id="bdSize" title="Tamanho do texto"><option value="0.6">Texto P</option><option value="1" selected>Texto M</option><option value="1.8">Texto G</option><option value="3">Texto GG</option></select>
+      <label class="chk" title="Preencher retângulos e elipses (semitransparente)"><input type="checkbox" id="bdFill"> Preencher</label>
+      <button id="bdDelShape" title="Excluir desenho selecionado (Delete)" disabled>✕ Excluir</button>
+      <button class="hUndo" title="Desfazer (Ctrl+Z)" disabled>↶</button>
+      <button class="hRedo" title="Refazer (Ctrl+Y)" disabled>↷</button>
+      <label class="chk" title="Mostrar os contornos e nomes das áreas sob o desenho (padrão: só a foto de fundo)"><input type="checkbox" id="bdAreas"> Áreas</label>
+      <label class="chk" title="Mostrar esta prancha também no Aboveground e no Underground"><input type="checkbox" id="bdShow"> 👁<span id="bdShowTxt"> Mostrar fora do modo Prancha</span></label>
     </div>
     <div class="spacer"></div>
     <button id="btnLoadPlan" title="Carregar ou trocar a imagem da planta">Carregar planta</button>
-    <button id="btnExport" title="Exportar dados (JSON)">Exportar</button>
-    <button id="btnImport" title="Importar dados (JSON)">Importar</button>
+    <button id="btnExpImg" title="Exportar imagem (PNG), PDF ou projeto da prancha">🖼 Imagem / PDF / Projeto</button>
+    <button id="btnExport" title="Exportar todos os dados do mapa (JSON): planta, áreas, fotos, atividades e pranchas">Exportar dados</button>
+    <button id="btnImport" title="Importar dados do mapa (JSON) – substitui os atuais">Importar dados</button>
     <input type="file" id="filePlan" accept="image/*" hidden>
     <input type="file" id="fileImport" accept="application/json,.json" hidden>
     <input type="file" id="filePhoto" accept="image/*" hidden>
@@ -194,6 +246,7 @@ dialog::backdrop{background:#000b}
         <g id="areasLayer"></g>
         <rect id="dim" fill="#05080b" fill-opacity=".72" mask="url(#focusMask)" class="hidden" pointer-events="none"/>
         <g id="focusOutline"></g>
+        <g id="boardLayer"></g>
         <g id="draftLayer"></g>
         <g id="pointsLayer"></g>
         <g id="handlesLayer"></g>
@@ -231,6 +284,37 @@ dialog::backdrop{background:#000b}
     </div>
   </div>
   <div class="cap"><strong id="photoDlgTitle" style="flex:1"></strong><span class="muted" id="photoDlgArea"></span><button onclick="photoDlg.close()">Fechar</button></div>
+</dialog>
+
+<dialog id="expDlg">
+  <div class="head" style="display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid var(--line)"><strong style="flex:1">🖼 Exportar imagem, PDF ou projeto</strong><button onclick="expDlg.close()">✕</button></div>
+  <div class="body">
+    <fieldset><legend>Conteúdo</legend>
+      <label><input type="checkbox" id="exPlan" checked> Foto da planta</label>
+      <label><input type="checkbox" id="exAreas" checked> Áreas (contornos e nomes)</label>
+      <label class="so-prancha"><input type="checkbox" id="exBoard" checked> Prancha: <b id="exBoardName"></b></label>
+      <label><input type="checkbox" id="exPins"> Pontos de foto</label>
+    </fieldset>
+    <fieldset><legend>Enquadramento</legend>
+      <label><input type="radio" name="exFrame" value="all" checked> Planta inteira</label>
+      <label><input type="radio" name="exFrame" value="view"> O que está na tela</label>
+      <label title="Dobra a resolução (arquivo maior)"><input type="checkbox" id="exHi"> Alta resolução</label>
+    </fieldset>
+    <fieldset><legend>Carimbo (faixa com título embaixo)</legend>
+      <label><input type="checkbox" id="exStamp" checked> Incluir</label>
+      <input id="exTitle" placeholder="Título" style="margin-top:4px">
+      <input id="exSub" placeholder="Subtítulo (ex.: semana, responsável)" style="margin-top:6px">
+    </fieldset>
+    <div class="btns">
+      <button class="primary" id="exPng">🖼 Baixar imagem (PNG)</button>
+      <button id="exPdf">📄 PDF / Imprimir</button>
+    </div>
+    <fieldset class="so-prancha"><legend>Projeto da prancha (desenhos, para levar a outro aparelho ou guardar)</legend>
+      <div class="btns" style="margin-top:4px"><button id="exProj">📦 Exportar projeto (.json)</button><button id="exProjImp">📥 Importar projeto</button></div>
+      <input type="file" id="fileProj" accept=".json,application/json" hidden>
+    </fieldset>
+    <div id="expMsg"></div>
+  </div>
 </dialog>
 
 <dialog id="panoDlg">
@@ -349,6 +433,7 @@ function snapshot(){
     areas:S.areas.map(a=>({...a, points:a.points.map(p=>[...p])})),
     photos:S.photos.map(p=>({...p})),
     activities:S.activities.map(t=>({...t})),
+    boards:JSON.parse(JSON.stringify(S.boards||[])),
   };
 }
 function checkpoint(){
@@ -358,7 +443,8 @@ function checkpoint(){
 function restore(snap){
   const curIds=new Set(S.areas.map(a=>a.id)), ids=new Set(snap.areas.map(a=>a.id));
   S.activities=[...S.activities.filter(t=>ids.has(t.areaId)), ...snap.activities.filter(t=>ids.has(t.areaId) && !curIds.has(t.areaId))];
-  S.plan=snap.plan; S.areas=snap.areas; S.photos=snap.photos;
+  S.plan=snap.plan; S.areas=snap.areas; S.photos=snap.photos; S.boards=snap.boards||[];
+  if(BD.sel && !board().shapes.some(x=>x.id===BD.sel)) BD.sel=null;
   if(!areaById(U.focus)) U.focus=null;
   if(!areaById(U.selArea)) U.selArea=null;
   if(!S.photos.some(p=>p.id===U.selPhoto)) U.selPhoto=null;
@@ -369,8 +455,8 @@ function undo(){ if(!HIST.undo.length) return; HIST.redo.push(snapshot()); resto
 function redo(){ if(!HIST.redo.length) return; HIST.undo.push(snapshot()); restore(HIST.redo.pop()); }
 function clearHistory(){ HIST.undo=[]; HIST.redo=[]; updateHistBtns(); }
 function updateHistBtns(){
-  $('#btnUndo').disabled=!HIST.undo.length; $('#btnRedo').disabled=!HIST.redo.length;
-  $('#btnUndo').title=`Desfazer (Ctrl+Z) · ${HIST.undo.length} passo(s)`; $('#btnRedo').title=`Refazer (Ctrl+Y) · ${HIST.redo.length} passo(s)`;
+  document.querySelectorAll('.hUndo').forEach(b=>{ b.disabled=!HIST.undo.length; b.title=`Desfazer (Ctrl+Z) · ${HIST.undo.length} passo(s)`; });
+  document.querySelectorAll('.hRedo').forEach(b=>{ b.disabled=!HIST.redo.length; b.title=`Refazer (Ctrl+Y) · ${HIST.redo.length} passo(s)`; });
 }
 // campos de texto: um único passo por sessão de digitação (do foco até sair do campo)
 function trackTyping(input, apply){
@@ -490,14 +576,16 @@ function renderWeekBar(){
 function renderAreas(){
   const L=$('#areasLayer'); L.innerHTML='';
   const fs = Math.max(10, S.plan.w/110);
+  const limpa = U.mode==='board' && !U.bdAreas;   // prancha: por padrão só a foto de fundo
   for(const a of S.areas){
-    const isFocus = U.focus===a.id;
+    if(limpa) break;
+    const isFocus = U.mode!=='board' && U.focus===a.id;
     if(U.focus && !isFocus && U.mode==='above') continue;
     if(isHiddenByFilter(a)) continue;
     const op = isFocus ? 0 : (U.mode==='under' ? .32 : .26);
     const poly = el('polygon',{points:a.points.map(p=>p.join(',')).join(' '), fill:a.color, 'fill-opacity':op, stroke:a.color,
       class:'area-poly'+(U.selArea===a.id && U.mode==='under'?' sel':''), 'data-kind':'area', 'data-id':a.id}, L);
-    if(isFocus) poly.style.pointerEvents='none';
+    if(isFocus || U.mode==='board') poly.style.pointerEvents='none';  // na prancha os desenhos passam por cima das áreas
     if(!isFocus){
       const [cx,cy]=centroid(a.points); const b=bbox(a.points);
       const size = Math.min(fs, b.h*0.32, b.w/Math.max(a.name.length,4)*1.7);
@@ -511,7 +599,7 @@ function renderAreas(){
     }
   }
   // máscara de foco
-  const f=areaById(U.focus);
+  const f=U.mode==='board' ? null : areaById(U.focus);
   $('#dim').classList.toggle('hidden', !f);
   $('#focusOutline').innerHTML='';
   if(f){
@@ -529,7 +617,7 @@ function renderHandlesAndPins(){
   // Aboveground: o botão 📷 exibe todos os pontos (gerais e internos) ou nenhum.
   // Underground: só os pontos do contexto atual (planta geral ou área expandida).
   const scope = U.focus || 'geral';
-  const visible = U.mode==='above' ? (U.showPhotos ? S.photos : []) : S.photos.filter(p=>p.scope===scope);
+  const visible = U.mode==='above' ? (U.showPhotos ? S.photos : []) : U.mode==='board' ? [] : S.photos.filter(p=>p.scope===scope);
   for(const ph of visible){
     const g=el('g',{class:'photo-pin','data-kind':'photo','data-id':ph.id, transform:`translate(${ph.x},${ph.y})`},P);
     const r=9*upp, sel=U.selPhoto===ph.id && U.mode==='under';
@@ -565,6 +653,11 @@ function renderHandlesAndPins(){
 
 function renderHint(){
   const h=$('#hint');
+  if(U.mode==='board'){ h.innerHTML={
+      select:'Clique num desenho para selecionar e arrastar · duplo clique num texto para editar · <span class="kbd">Delete</span> exclui · arrastar no vazio move a planta',
+      pen:'Arraste para desenhar à mão livre', line:'Arraste para traçar a linha', arrow:'Arraste do início até a ponta da seta',
+      rect:'Arraste para desenhar o retângulo', ellipse:'Arraste para desenhar a elipse', text:'Clique onde o texto deve começar',
+    }[BD.tool]+' · roda do mouse = zoom'; return; }
   if(U.mode==='above'){
     h.innerHTML = U.focus
       ? 'Clique nos pontos <b>📷</b> para ver as fotos · <span class="kbd">Esc</span> volta para a planta geral'
@@ -580,8 +673,8 @@ function renderHint(){
 }
 
 function render(){
-  renderPlan(); renderAreas(); renderHandlesAndPins(); renderHint(); renderPanel(); renderWeekBar(); renderPhotoBtn();
-  svg.classList.toggle('cross', U.mode==='under' && (U.tool==='draw'||U.tool==='photo'||U.tool==='photo360'));
+  renderPlan(); renderAreas(); renderBoard(); renderHandlesAndPins(); renderHint(); renderPanel(); renderWeekBar(); renderPhotoBtn(); renderBoardBar();
+  svg.classList.toggle('cross', (U.mode==='under' && (U.tool==='draw'||U.tool==='photo'||U.tool==='photo360')) || (U.mode==='board' && BD.tool!=='select'));
 }
 
 /* ---------------- painel lateral ---------------- */
@@ -590,6 +683,7 @@ function closePanel(){ $('#panel').classList.add('hidden'); }
 
 function renderPanel(){
   const body=$('#panelBody');
+  if(U.mode==='board'){ closePanel(); return; }
   if(U.mode==='above'){
     const a=areaById(U.focus);
     if(!a && U.semArea){ openPanel(); $('#panelTitle').innerHTML='⚠ Programação sem área no mapa'; body.innerHTML=panelSemArea(); bindSemArea(); return; }
@@ -979,12 +1073,221 @@ function showPano(p){
   window.addEventListener('resize',()=>{ if($('#panoDlg').open) panoRedraw(); });
 }
 
+/* ---------------- prancha: desenho livre sobre a planta ----------------
+   Várias pranchas por mapa (S.boards = [{id, name, shapes}]); coordenadas em pixels da planta.
+   Formas: pen {pts}, line/arrow {x1,y1,x2,y2}, rect/ellipse {x,y,ww,hh,fill}, text {x,y,text,size}; todas com color e sw (espessura).
+   Desfazer/refazer junto com a edição da planta (HIST). */
+const BD={tool:'select', color:'#ff3b30', wk:1, sk:1, fill:false, drag:null, draft:null, sel:null, lastTap:0};
+const BD_CORES=['#ff3b30','#ffcc00','#43b02a','#4fb3ff','#ff8a00','#c792ea','#ffffff','#000000'];
+U.board=(()=>{ try{ return localStorage.getItem('planta.board'); }catch(e){ return null; } })();
+U.bdAreas=(()=>{ try{ return localStorage.getItem('planta.bdAreas')==='1'; }catch(e){ return false; } })();
+U.showBoard=(()=>{ try{ return localStorage.getItem('planta.showBoard')!=='0'; }catch(e){ return true; } })();
+function boards(){ if(!Array.isArray(S.boards)||!S.boards.length) S.boards=[{id:uid(), name:'Prancha 1', shapes:[]}]; return S.boards; }
+function board(){ const B=boards(); let b=B.find(x=>x.id===U.board); if(!b){ b=B[0]; U.board=b.id; } return b; }
+const bwBase=()=>Math.max(3, S.plan.w/350), bsBase=()=>Math.max(18, S.plan.w/50);  // espessura e texto "Média" em px da planta
+function setBoardTool(t){ BD.tool=t; if(t!=='select'){ BD.sel=null; } document.querySelectorAll('#bdToolSeg button').forEach(b=>b.classList.toggle('on', b.dataset.bt===t)); renderBoard(); renderHint(); renderBoardBar(); svg.classList.toggle('cross', t!=='select'); }
+function selShape(){ return BD.sel ? board().shapes.find(x=>x.id===BD.sel) : null; }
+
+function drawShape(L, sh, inter){
+  const a=inter?{'data-kind':'shape','data-id':sh.id}:{'pointer-events':'none'};
+  const st={stroke:sh.color,'stroke-width':sh.sw,'stroke-linecap':'round','stroke-linejoin':'round',fill:'none'};
+  const hit=w=>({stroke:'transparent','stroke-width':Math.max(sh.sw*4, bwBase()*5),fill:'none',...a});
+  if(sh.type==='pen'){ const pts=sh.pts.map(p=>p.join(',')).join(' '); el('polyline',{...st,points:pts,...a},L); if(inter) el('polyline',{points:pts,...hit()},L); }
+  else if(sh.type==='line'||sh.type==='arrow'){
+    el('line',{...st,x1:sh.x1,y1:sh.y1,x2:sh.x2,y2:sh.y2,...a},L);
+    if(sh.type==='arrow'){ const ang=Math.atan2(sh.y2-sh.y1,sh.x2-sh.x1), h=sh.sw*4.5+bwBase()*2;
+      const p=[[sh.x2,sh.y2],[sh.x2-h*Math.cos(ang-0.45),sh.y2-h*Math.sin(ang-0.45)],[sh.x2-h*Math.cos(ang+0.45),sh.y2-h*Math.sin(ang+0.45)]];
+      el('polygon',{points:p.map(q=>q.join(',')).join(' '),fill:sh.color,stroke:sh.color,'stroke-width':sh.sw*0.6,'stroke-linejoin':'round',...a},L); }
+    if(inter) el('line',{x1:sh.x1,y1:sh.y1,x2:sh.x2,y2:sh.y2,...hit()},L);
+  }
+  else if(sh.type==='rect'||sh.type==='ellipse'){
+    const f={fill:sh.fill?sh.color:'none','fill-opacity':sh.fill?0.28:0,...(inter?{'pointer-events':'all'}:{})};
+    if(sh.type==='rect') el('rect',{...st,...f,x:sh.x,y:sh.y,width:sh.ww,height:sh.hh,...a},L);
+    else el('ellipse',{...st,...f,cx:sh.x+sh.ww/2,cy:sh.y+sh.hh/2,rx:sh.ww/2,ry:sh.hh/2,...a},L);
+  }
+  else if(sh.type==='text'){
+    const t=el('text',{x:sh.x,y:sh.y,'font-size':sh.size,'font-weight':700,fill:sh.color,stroke:'#000',
+      'stroke-width':sh.size*0.12,'stroke-opacity':0.75,'paint-order':'stroke','dominant-baseline':'hanging',
+      'font-family':'Segoe UI,Arial,sans-serif',...a},L);
+    String(sh.text).split('\n').forEach((ln,i)=>{ const ts=el('tspan',{x:sh.x,dy:i?sh.size*1.2:0,...(inter?{'data-kind':'shape','data-id':sh.id}:{})},t); ts.textContent=ln||' '; });
+  }
+}
+function renderBoard(){
+  const L=$('#boardLayer'); if(!L) return; L.innerHTML=''; if(!S) return;
+  const inter=U.mode==='board';
+  if(!inter && !U.showBoard) return;
+  const b=board();
+  b.shapes.forEach(sh=>drawShape(L,sh,inter));
+  if(BD.draft) drawShape(L,BD.draft,false);
+  const s=inter&&selShape();
+  if(s){ const n=L.querySelector(`[data-id="${s.id}"]`); if(n){ let bb; try{ bb=n.getBBox(); }catch(e){}
+    if(bb){ const pad=bwBase()*2.5+s.sw/2; el('rect',{x:bb.x-pad,y:bb.y-pad,width:bb.width+pad*2,height:bb.height+pad*2,fill:'none',stroke:'#4fb3ff','stroke-width':2,'stroke-dasharray':'7 5','vector-effect':'non-scaling-stroke','pointer-events':'none'},L); } } }
+}
+function renderBoardBar(){
+  if(!S) return;
+  const B=boards(), b=board();
+  $('#bdSel').innerHTML=B.map(x=>`<option value="${x.id}" ${x.id===b.id?'selected':''}>${esc(x.name)} (${x.shapes.length})</option>`).join('');
+  const s=selShape(), cor=s?s.color:BD.color;
+  $('#bdColors').innerHTML=BD_CORES.map(c=>`<button data-cor="${c}" class="${c===cor?'on':''}" style="background:${c}" title="${c}"></button>`).join('')+`<input type="color" id="bdCor" value="${cor}" title="Outra cor">`;
+  $('#bdDelShape').disabled=!s; $('#bdShow').checked=U.showBoard; $('#bdAreas').checked=U.bdAreas;
+  $('#bdFill').checked = s&&(s.type==='rect'||s.type==='ellipse') ? !!s.fill : BD.fill;
+  $('#bdDel').disabled=B.length<2;
+}
+function moveShape(sh,dx,dy){
+  if(sh.type==='pen') sh.pts=sh.pts.map(([x,y])=>[x+dx,y+dy]);
+  else if(sh.type==='line'||sh.type==='arrow'){ sh.x1+=dx; sh.y1+=dy; sh.x2+=dx; sh.y2+=dy; }
+  else { sh.x+=dx; sh.y+=dy; }
+}
+function editText(sh){ const t=prompt('Texto (use \\n para quebrar linha):', String(sh.text).replace(/\n/g,'\\n')); if(t==null) return;
+  checkpoint(); if(!t.trim()){ board().shapes=board().shapes.filter(x=>x!==sh); BD.sel=null; } else sh.text=t.replace(/\\n/g,'\n'); save(); renderBoard(); renderBoardBar(); }
+function boardDown(e){
+  const t=e.target, [x,y]=toPlan(e), b=board();
+  if(BD.tool==='select'){
+    const id=t.dataset?.kind==='shape' ? t.dataset.id : null, sh=id&&b.shapes.find(q=>q.id===id);
+    if(sh){
+      const now=performance.now();
+      if(BD.sel===sh.id && sh.type==='text' && now-BD.lastTap<380){ BD.lastTap=0; editText(sh); return true; }
+      BD.lastTap=now; BD.sel=sh.id; try{ svg.setPointerCapture(e.pointerId); }catch(err){}
+      BD.drag={mode:'move', sh, px:x, py:y, orig:JSON.stringify(sh), cp:false}; renderBoard(); renderBoardBar(); return true;
+    }
+    if(BD.sel){ BD.sel=null; renderBoard(); renderBoardBar(); }
+    return false;  // arrastar no vazio = mover a planta
+  }
+  if(BD.tool==='text'){
+    const txt=prompt('Texto (use \\n para quebrar linha):'); if(txt&&txt.trim()){
+      checkpoint(); const sh={id:uid(), type:'text', x, y, text:txt.replace(/\\n/g,'\n'), color:BD.color, sw:0, size:bsBase()*BD.sk};
+      b.shapes.push(sh); BD.sel=sh.id; setBoardTool('select'); save(); renderBoard(); renderBoardBar(); }
+    return true;
+  }
+  try{ svg.setPointerCapture(e.pointerId); }catch(err){}
+  const base={id:uid(), color:BD.color, sw:bwBase()*BD.wk};
+  if(BD.tool==='pen') BD.draft={...base, type:'pen', pts:[[x,y]]};
+  else if(BD.tool==='line'||BD.tool==='arrow') BD.draft={...base, type:BD.tool, x1:x, y1:y, x2:x, y2:y};
+  else BD.draft={...base, type:BD.tool, x, y, ww:0, hh:0, fill:BD.fill, ox:x, oy:y};
+  BD.drag={mode:'draw'}; renderBoard(); return true;
+}
+function boardMove(e){
+  const [x,y]=toPlan(e), d=BD.drag;
+  if(d.mode==='move'){ if(!d.cp){ checkpoint(); d.cp=true; } Object.assign(d.sh, JSON.parse(d.orig)); moveShape(d.sh, x-d.px, y-d.py); renderBoard(); return; }
+  const sh=BD.draft; if(!sh) return;
+  if(sh.type==='pen'){ const l=sh.pts[sh.pts.length-1]; if(Math.hypot(x-l[0],y-l[1]) > unitsPerPx()*1.5) sh.pts.push([x,y]); }
+  else if(sh.type==='line'||sh.type==='arrow'){ sh.x2=x; sh.y2=y; }
+  else { sh.x=Math.min(sh.ox,x); sh.y=Math.min(sh.oy,y); sh.ww=Math.abs(x-sh.ox); sh.hh=Math.abs(y-sh.oy); }
+  renderBoard();
+}
+function boardUp(){
+  const d=BD.drag; BD.drag=null;
+  if(d.mode==='move'){ if(d.cp) save(); renderBoard(); return; }
+  const sh=BD.draft; BD.draft=null; if(!sh) return;
+  const m=unitsPerPx()*4;
+  const pequeno = sh.type==='pen' ? sh.pts.length<2 : (sh.type==='line'||sh.type==='arrow') ? Math.hypot(sh.x2-sh.x1,sh.y2-sh.y1)<m : (sh.ww<m||sh.hh<m);
+  if(pequeno){ renderBoard(); return; }
+  delete sh.ox; delete sh.oy;
+  if(sh.type==='pen') sh.pts=sh.pts.map(([px,py])=>[Math.round(px*10)/10, Math.round(py*10)/10]);
+  checkpoint(); board().shapes.push(sh); save(); renderBoard(); renderBoardBar();
+}
+function boardDelSel(){ const s=selShape(); if(!s) return; checkpoint(); board().shapes=board().shapes.filter(x=>x!==s); BD.sel=null; save(); renderBoard(); renderBoardBar(); }
+function boardProp(fn){ const s=selShape(); if(s){ checkpoint(); fn(s); save(); renderBoard(); } renderBoardBar(); }
+{
+  document.querySelectorAll('#bdToolSeg button').forEach(b=>b.onclick=()=>setBoardTool(b.dataset.bt));
+  $('#bdColors').addEventListener('click',e=>{ const b=e.target.closest('[data-cor]'); if(!b) return; BD.color=b.dataset.cor; boardProp(s=>s.color=BD.color); });
+  $('#bdColors').addEventListener('change',e=>{ if(e.target.id!=='bdCor') return; BD.color=e.target.value; boardProp(s=>s.color=BD.color); });
+  $('#bdW').onchange=e=>{ BD.wk=+e.target.value; boardProp(s=>{ if(s.type!=='text') s.sw=bwBase()*BD.wk; }); };
+  $('#bdSize').onchange=e=>{ BD.sk=+e.target.value; boardProp(s=>{ if(s.type==='text') s.size=bsBase()*BD.sk; }); };
+  $('#bdFill').onchange=e=>{ BD.fill=e.target.checked; boardProp(s=>{ if(s.type==='rect'||s.type==='ellipse') s.fill=BD.fill; }); };
+  $('#bdDelShape').onclick=boardDelSel;
+  $('#bdAreas').onchange=e=>{ U.bdAreas=e.target.checked; try{ localStorage.setItem('planta.bdAreas',U.bdAreas?'1':'0'); }catch(err){} renderAreas(); };
+  $('#bdShow').onchange=e=>{ U.showBoard=e.target.checked; try{ localStorage.setItem('planta.showBoard',U.showBoard?'1':'0'); }catch(err){} };
+  $('#bdSel').onchange=e=>{ U.board=e.target.value; BD.sel=null; try{ localStorage.setItem('planta.board',U.board); }catch(err){} renderBoard(); renderBoardBar(); };
+  $('#bdNew').onclick=()=>{ const n=prompt('Nome da nova prancha:', 'Prancha '+(boards().length+1)); if(!n||!n.trim()) return;
+    checkpoint(); const b={id:uid(), name:n.trim(), shapes:[]}; S.boards.push(b); U.board=b.id; BD.sel=null; try{ localStorage.setItem('planta.board',U.board); }catch(err){} save(); renderBoard(); renderBoardBar(); };
+  $('#bdRen').onclick=()=>{ const b=board(), n=prompt('Nome da prancha:', b.name); if(!n||!n.trim()) return; checkpoint(); b.name=n.trim(); save(); renderBoardBar(); };
+  $('#bdDel').onclick=()=>{ const b=board(); if(boards().length<2) return; if(!confirm(`Excluir a prancha "${b.name}" e os ${b.shapes.length} desenho(s) dela?`)) return;
+    checkpoint(); S.boards=S.boards.filter(x=>x!==b); U.board=S.boards[0].id; BD.sel=null; save(); renderBoard(); renderBoardBar(); };
+}
+
+/* ---------------- exportar: imagem (PNG), PDF (impressão) e projeto da prancha ---------------- */
+const hojeBR=()=>new Date().toLocaleDateString('pt-BR');
+function loadImgSrc(src){ return new Promise((res,rej)=>{ const im=new Image(); im.onload=()=>res(im); im.onerror=()=>rej(new Error('não foi possível carregar a imagem da planta')); im.src=src; }); }
+function expOpts(){ return {plan:$('#exPlan').checked, areas:$('#exAreas').checked, board:$('#exBoard').checked, pins:$('#exPins').checked,
+  view:document.querySelector('input[name=exFrame]:checked').value==='view', hi:$('#exHi').checked, stamp:$('#exStamp').checked, title:$('#exTitle').value.trim(), sub:$('#exSub').value.trim()}; }
+async function renderExport(o){
+  const vb = o.view ? {...U.vb} : {x:0, y:0, w:S.plan.w, h:S.plan.h};
+  const W = Math.round(Math.min((o.view ? 2400 : S.plan.w) * (o.hi?2:1), 8000)), k=W/vb.w, H=Math.round(vb.h*k);
+  const band = o.stamp ? Math.max(60, Math.round(W*0.055)) : 0;
+  const c=document.createElement('canvas'); c.width=W; c.height=H+band; const g=c.getContext('2d');
+  g.fillStyle='#0a0e11'; g.fillRect(0,0,W,H+band);
+  if(o.plan && S.plan.src){ const im=await loadImgSrc(S.plan.src); g.drawImage(im, -vb.x*k, -vb.y*k, S.plan.w*k, S.plan.h*k); }
+  // camada vetorial (áreas, desenhos, pontos) desenhada por cima como SVG
+  const G=document.createElementNS(NS,'g'), sw=S.plan.w/1300, fs=Math.max(10, S.plan.w/110);
+  if(o.areas) for(const a of S.areas){
+    el('polygon',{points:a.points.map(p=>p.join(',')).join(' '), fill:a.color,'fill-opacity':.22, stroke:a.color,'stroke-width':sw*2},G);
+    const [cx,cy]=centroid(a.points), b=bbox(a.points), size=Math.min(fs, b.h*0.32, b.w/Math.max(a.name.length,4)*1.7);
+    const t=el('text',{x:cx,y:cy,'font-size':size,'font-weight':700,fill:'#fff',stroke:'#000','stroke-width':size*0.12,'stroke-opacity':.7,'paint-order':'stroke','text-anchor':'middle','dominant-baseline':'middle','font-family':'Segoe UI,Arial,sans-serif'},G); t.textContent=a.name;
+  }
+  if(o.board) board().shapes.forEach(sh=>drawShape(G,sh,false));
+  if(o.pins) S.photos.forEach(p=>{ const r=S.plan.w/180; el('circle',{cx:p.x,cy:p.y,r,fill:p.type==='360'?'#9b6bff':'#ff5c8a',stroke:'#000','stroke-width':r*0.15},G); });
+  const svgTxt=`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="${vb.x} ${vb.y} ${vb.w} ${vb.h}">${new XMLSerializer().serializeToString(G)}</svg>`;
+  const ov=await loadImgSrc('data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svgTxt)); g.drawImage(ov,0,0,W,H);
+  if(band){
+    g.fillStyle='#000'; g.fillRect(0,H,W,band); g.fillStyle='#43b02a'; g.fillRect(0,H,W,Math.max(3,band*0.06));
+    const pad=band*0.3; g.textBaseline='middle';
+    g.fillStyle='#fff'; g.font=`700 ${Math.round(band*0.36)}px Segoe UI, Arial, sans-serif`; g.fillText(o.title||board().name, pad, H+band*0.4);
+    if(o.sub){ g.fillStyle='#bfc7cf'; g.font=`${Math.round(band*0.24)}px Segoe UI, Arial, sans-serif`; g.fillText(o.sub, pad, H+band*0.76); }
+    g.textAlign='right'; g.fillStyle='#43b02a'; g.font=`700 ${Math.round(band*0.26)}px Segoe UI, Arial, sans-serif`; g.fillText('Central de controle CIVIL · Mapa geral', W-pad, H+band*0.4);
+    g.fillStyle='#bfc7cf'; g.font=`${Math.round(band*0.22)}px Segoe UI, Arial, sans-serif`; g.fillText(hojeBR(), W-pad, H+band*0.76); g.textAlign='left';
+  }
+  return c;
+}
+const nomeArq=s=>String(s).replace(/[\\/:*?"<>|]+/g,'-').trim();
+function baixarBlob(blob,nome){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=nome; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),4000); }
+async function exportar(tipo){
+  const msg=$('#expMsg'), o=expOpts(); msg.textContent='Gerando…';
+  try{
+    const c=await renderExport(o), nome=nomeArq(`PRANCHA - ${o.title||board().name} - ${iso(new Date())}`);
+    if(tipo==='png'){ c.toBlob(b=>{ baixarBlob(b, nome+'.png'); msg.textContent=`Imagem gerada (${c.width} × ${c.height} px): ${nome}.png`; }, 'image/png'); return; }
+    // PDF: abre a imagem numa janela de impressão (no destino escolha "Salvar como PDF")
+    const url=c.toDataURL('image/jpeg',0.92), w=window.open('','_blank');
+    if(!w){ msg.textContent='O navegador bloqueou a janela de impressão. Permita pop-ups para este site e tente de novo.'; return; }
+    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(nome)}</title><style>@page{size:${c.width>=c.height?'landscape':'portrait'};margin:8mm}html,body{margin:0;background:#fff}img{display:block;width:100%;height:auto}</style></head><body><img src="${url}" onload="setTimeout(function(){print()},300)"></body></html>`);
+    w.document.close(); msg.textContent='Janela de impressão aberta – em Destino escolha "Salvar como PDF".';
+  }catch(err){ msg.textContent='Não foi possível exportar: '+(err&&err.message||err); }
+}
+$('#btnExpImg').onclick=()=>{
+  $('#exBoardName').textContent=board().name+' ('+board().shapes.length+' desenho(s))';
+  if(!$('#exTitle').value) $('#exTitle').value=board().name;
+  $('#exAreas').checked = U.mode==='board' ? U.bdAreas : true;
+  if(U.secao==='mapa') $('#exBoard').checked=false;
+  if(!$('#exSub').value) $('#exSub').value=weekLabel(U.week);
+  $('#expMsg').textContent=''; $('#expDlg').showModal();
+};
+$('#exPng').onclick=()=>exportar('png');
+$('#exPdf').onclick=()=>exportar('pdf');
+$('#exProj').onclick=()=>{ const b=board();
+  const P={app:'pranchaMapaCivil', v:1, exportado:new Date().toISOString(), plan:{w:S.plan.w, h:S.plan.h}, prancha:{name:b.name, shapes:b.shapes}};
+  baixarBlob(new Blob([JSON.stringify(P)],{type:'application/json'}), nomeArq(`PROJETO PRANCHA - ${b.name}`)+'.json'); $('#expMsg').textContent='Projeto exportado.'; };
+$('#exProjImp').onclick=()=>{ $('#fileProj').value=''; $('#fileProj').click(); };
+$('#fileProj').onchange=e=>{ const fl=e.target.files[0]; if(!fl) return;
+  fl.text().then(t=>{ const P=JSON.parse(t); if(P.app!=='pranchaMapaCivil'||!P.prancha) throw new Error('não é um projeto de prancha');
+    const sx=S.plan.w/(P.plan&&P.plan.w||S.plan.w), sy=S.plan.h/(P.plan&&P.plan.h||S.plan.h);
+    const sc=sh=>{ const n={...sh, id:uid()};
+      if(n.pts) n.pts=n.pts.map(([x,y])=>[x*sx,y*sy]);
+      ['x','x1','x2','ww'].forEach(k=>{ if(k in n) n[k]*=sx; }); ['y','y1','y2','hh'].forEach(k=>{ if(k in n) n[k]*=sy; });
+      if(n.size) n.size*=sx; if(n.sw) n.sw*=sx; return n; };
+    checkpoint(); const b={id:uid(), name:P.prancha.name+' (importada)', shapes:(P.prancha.shapes||[]).map(sc)}; boards().push(b); U.board=b.id; BD.sel=null; save();
+    if(document.body.classList.contains('sec-mapa')) avisaCentral({tipo:'irSecao', secao:'prancha'});  // na Central: vai para a 4.2
+    else if(U.mode!=='board') setMode('board'); else { renderBoard(); renderBoardBar(); }
+    $('#exBoardName').textContent=b.name; $('#expMsg').textContent=`Projeto importado como "${b.name}" (${b.shapes.length} desenho(s)).`; })
+  .catch(err=>{ $('#expMsg').textContent='Não foi possível importar: '+err.message; });
+};
+
 /* ---------------- interação no mapa ---------------- */
 let drag=null;   // {type:'pan'|'vtx'|'photo'|'area', ...}
 svg.addEventListener('wheel', e=>{ e.preventDefault(); const [x,y]=toPlan(e); zoomAt(e.deltaY>0?1.15:1/1.15, x, y); }, {passive:false});
 
 svg.addEventListener('pointerdown', e=>{
   if(e.button!==0 && e.button!==1) return;
+  if(U.mode==='board' && e.button===0 && boardDown(e)) return;
   const t=e.target, kind=t.dataset?.kind, id=t.dataset?.id, [x,y]=toPlan(e);
   svg.setPointerCapture(e.pointerId);
   const base={sx:e.clientX, sy:e.clientY, px:x, py:y, kind, id, i:+t.dataset?.i, moved:false};
@@ -999,6 +1302,7 @@ svg.addEventListener('pointerdown', e=>{
 });
 
 svg.addEventListener('pointermove', e=>{
+  if(BD.drag){ boardMove(e); return; }
   if(U.mode==='under' && U.tool==='draw' && U.draft){ U.draftHover=toPlan(e); if(!drag) renderHandlesAndPins(); }
   if(!drag) return;
   if(!drag.moved && Math.hypot(e.clientX-drag.sx, e.clientY-drag.sy) < 4) return;
@@ -1017,6 +1321,7 @@ svg.addEventListener('pointermove', e=>{
 });
 
 svg.addEventListener('pointerup', e=>{
+  if(BD.drag){ boardUp(e); return; }
   const d=drag; drag=null; svg.classList.remove('panning');
   if(!d) return;
   if(d.moved){ if(d.type!=='pan'){ save(); renderPanel(); } return; }
@@ -1029,6 +1334,7 @@ function onClick(d, e){
   const now=performance.now(), dbl = now-lastClick.t<320 && Math.hypot(e.clientX-lastClick.x,e.clientY-lastClick.y)<6;
   lastClick={t:now,x:e.clientX,y:e.clientY};
   const {kind,id,px,py}=d;
+  if(U.mode==='board') return;  // na prancha o clique no vazio só desmarca (tratado em boardDown)
 
   if(U.mode==='above'){
     if(kind==='photo') return showPhoto(id);
@@ -1070,7 +1376,9 @@ function setMode(m){
   document.querySelectorAll('#modeSeg button').forEach(b=>b.classList.toggle('on', b.dataset.mode===m));
   $('#editTools').classList.toggle('hidden', m!=='under');
   $('#viewTools').classList.toggle('hidden', m!=='above');
-  if(m==='under') openPanel(); else if(!U.focus) closePanel();
+  $('#boardTools').classList.toggle('hidden', m!=='board'); document.body.classList.toggle('m-board', m==='board');
+  if(m!=='board'){ BD.sel=null; BD.draft=null; }
+  if(m==='under') openPanel(); else if(m==='board' || !U.focus) closePanel();
   render();
 }
 function setTool(t){
@@ -1099,8 +1407,8 @@ $('#onlyScheduled').onchange=e=>{
   try{ localStorage.setItem('planta.onlyScheduled', U.onlyScheduled?'1':'0'); }catch(err){}
   renderAreas(); renderWeekBar();
 };
-$('#btnUndo').onclick=undo;
-$('#btnRedo').onclick=redo;
+document.querySelectorAll('.hUndo').forEach(x=>x.onclick=undo);  // Underground e Prancha
+document.querySelectorAll('.hRedo').forEach(x=>x.onclick=redo);
 $('#btnBack').onclick=()=>{ U.focus=null; U.selAct=null; if(U.mode==='above') closePanel(); render(); fitAll(); };
 $('#btnClosePanel').onclick=()=>{ if(U.mode==='above' && U.focus){ $('#btnBack').click(); } else closePanel(); };
 $('#zIn').onclick=()=>zoomAt(1/1.4, U.vb.x+U.vb.w/2, U.vb.y+U.vb.h/2);
@@ -1115,6 +1423,14 @@ document.addEventListener('keydown', e=>{
     else if(U.mode==='under'){ U.selArea=U.selPhoto=null; render(); }
   }
   if(e.key==='Enter' && U.draft) finishDraft();
+  if(U.mode==='board'){
+    const k=e.key.toLowerCase(), mapa={v:'select',p:'pen',l:'line',a:'arrow',r:'rect',e:'ellipse',t:'text'};
+    if(!e.ctrlKey && !e.metaKey && mapa[k]) setBoardTool(mapa[k]);
+    if((e.key==='Delete'||e.key==='Backspace') && BD.sel){ e.preventDefault(); boardDelSel(); }
+    if(e.key==='Escape' && BD.sel){ BD.sel=null; renderBoard(); renderBoardBar(); }
+    if((e.ctrlKey||e.metaKey) && k==='z' && !e.shiftKey){ e.preventDefault(); undo(); }
+    if((e.ctrlKey||e.metaKey) && (k==='y' || (k==='z' && e.shiftKey))){ e.preventDefault(); redo(); }
+  }
   if(U.mode==='under'){
     if(e.key==='v'||e.key==='V') setTool('select');
     if(e.key==='n'||e.key==='N') setTool('draw');
@@ -1126,7 +1442,7 @@ document.addEventListener('keydown', e=>{
     if((e.ctrlKey||e.metaKey) && (k==='y' || (k==='z' && e.shiftKey))){ e.preventDefault(); redo(); }
   }
 });
-new ResizeObserver(()=>renderHandlesAndPins()).observe(svg);
+new ResizeObserver(()=>{ if(S) renderHandlesAndPins(); }).observe(svg);  // antes de carregar os dados não há o que redesenhar
 
 /* ---------------- planta / importação / exportação ---------------- */
 $('#btnLoadPlan').onclick=()=>{ $('#filePlan').value=''; $('#filePlan').click(); };
@@ -1171,7 +1487,17 @@ window.addEventListener('message',e=>{
   if(e.source!==window.parent||!e.data) return;
   if(e.data.tipo==='semana'){ semCentral=e.data.ini; if(S) window.Planta.setWeek(semCentral); }
   if(e.data.tipo==='programacao'){ PROG=e.data; if(S) render(); }
+  if(e.data.tipo==='secao'){ U.secao=e.data.secao; if(S) aplicaSecao(); }
 });
+
+function aplicaSecao(){
+  const pr=U.secao==='prancha';
+  document.body.classList.toggle('sec-prancha', pr); document.body.classList.toggle('sec-mapa', U.secao==='mapa');
+  if(U.secao==='mapa'){ U.showBoard=false; $('#exBoard').checked=false; }  // desenhos antigos da prancha não aparecem no mapa
+  if(pr && U.mode!=='board') setMode('board');
+  else if(!pr && U.mode==='board') setMode('above');
+  else render();
+}
 
 /* ---------------- inicialização ---------------- */
 (async()=>{
@@ -1179,6 +1505,7 @@ window.addEventListener('message',e=>{
   S = (await DB.get('state')) || seedState();
   if(semCentral) U.week=mondayOfISO(semCentral);
   render(); requestAnimationFrame(()=>fitAll(false));
+  if(U.secao) aplicaSecao();
   avisaCentral({tipo:'mapaPronto'});
 })();
 </script>

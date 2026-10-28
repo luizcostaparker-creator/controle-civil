@@ -1,10 +1,11 @@
-/* Central de controle CIVIL – service worker (gerado por ATUALIZAR APP; versão 2026-10-27-164354)
+/* Central de controle CIVIL – service worker (gerado por ATUALIZAR APP; versão 2026-10-28-144244)
    Guarda o sistema e as bibliotecas no aparelho: o app abre sem internet.
    Os dados da obra NÃO passam por aqui – ficam no navegador do aparelho (localStorage + IndexedDB). */
-const CACHE = 'controle-civil-2026-10-27-164354';
+const CACHE = 'controle-civil-2026-10-28-144244';
 // opcionais: se faltar algum no site, o app instala mesmo assim
 const ICONES = ['./icon-192.png', './icon-512.png', './apple-touch-icon.png',
-  './apontamento.html', './apontamento.webmanifest', './icon-ap-192.png', './icon-ap-512.png', './apple-touch-icon-ap.png', './mapa.html'];
+  './apontamento.html', './apontamento.webmanifest', './icon-ap-192.png', './icon-ap-512.png', './apple-touch-icon-ap.png', './mapa.html', './prancha.html',
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js', 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'];
 // planta.jpg (~1,5 MB) não é baixada na instalação: fica guardada na 1ª vez que o mapa abre
 const ARQUIVOS = [
   './', './index.html', './manifest.webmanifest',
